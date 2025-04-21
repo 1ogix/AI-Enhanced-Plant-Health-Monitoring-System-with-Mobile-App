@@ -1,0 +1,10 @@
+include ':flutter_usb_serial'
+project(':flutter_usb_serial').projectDir = new File(rootProject.projectDir, '../.pub-cache/hosted/pub.dev/flutter_usb_serial-0.0.2/android')
+
+gradle.projectsEvaluated {
+    project(':flutter_usb_serial') {
+        android {
+            namespace "com.example.flutter_usb_serial"
+        }
+    }
+}
