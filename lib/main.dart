@@ -7,6 +7,7 @@ import 'screens/plant_health_screen.dart';
 // import 'screens/logs_screen.dart';
 import 'widgets/sidebar.dart';
 
+// TEST
 void main() {
   runApp(const PlantMonitorApp());
 }
