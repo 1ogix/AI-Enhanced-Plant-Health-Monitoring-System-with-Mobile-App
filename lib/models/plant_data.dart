@@ -15,7 +15,6 @@ class PlantData {
   // Current sensor values
   double temperature = 0.0;
   int soilMoisture = 0;
-  int waterLevel = 0;
   int lightExposure = 0;
   double soilPh = 0.0;
   int nutrientLevel = 0;
@@ -32,14 +31,12 @@ class PlantData {
   // Stream controllers for real-time updates
   final _temperatureController = StreamController<double>.broadcast();
   final _soilMoistureController = StreamController<int>.broadcast();
-  final _waterLevelController = StreamController<int>.broadcast();
   final _plantHealthController = StreamController<String>.broadcast();
   final _connectionStatusController = StreamController<bool>.broadcast();
 
   // Getters for streams
   Stream<double> get temperatureStream => _temperatureController.stream;
   Stream<int> get soilMoistureStream => _soilMoistureController.stream;
-  Stream<int> get waterLevelStream => _waterLevelController.stream;
   Stream<String> get plantHealthStream => _plantHealthController.stream;
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
   Stream<String> get logMessages => _esp32Service.logMessages;
@@ -53,7 +50,6 @@ class PlantData {
     // Initialize with default values
     temperature = 0.0;
     soilMoisture = 0;
-    waterLevel = 0;
     plantHealth = 'UNKNOWN';
 
     // Initialize history data
@@ -124,12 +120,6 @@ class PlantData {
         updateSoilMoisture(newMoisture);
       }
 
-      // Update water level
-      if (data.containsKey('waterLevel')) {
-        int newWaterLevel = data['waterLevel'].toInt();
-        updateWaterLevel(newWaterLevel);
-      }
-
       // Update plant health if provided by ESP32
       if (data.containsKey('plantHealth')) {
         String newHealth = data['plantHealth'];
@@ -173,11 +163,6 @@ class PlantData {
       soilMoistureHistory.removeAt(0);
     }
     soilMoistureHistory.add(value);
-  }
-
-  void updateWaterLevel(int value) {
-    waterLevel = value;
-    _waterLevelController.add(value);
   }
 
   void updateLightExposure(int value) {
@@ -236,7 +221,6 @@ class PlantData {
     // Start with some realistic values
     temperature = 25.0;
     soilMoisture = 55;
-    waterLevel = 80;
     lightExposure = 65;
     soilPh = 6.5;
     nutrientLevel = 70;
@@ -245,7 +229,6 @@ class PlantData {
     // Send initial values to streams
     _temperatureController.add(temperature);
     _soilMoistureController.add(soilMoisture);
-    _waterLevelController.add(waterLevel);
     _plantHealthController.add(plantHealth);
 
     // Update values every 3 seconds with slight variations
@@ -261,14 +244,9 @@ class PlantData {
         soilMoisture = 75;
       }
 
-      // Simulate water level changes
-      waterLevel -= 1;
-      waterLevel = waterLevel.clamp(0, 100);
-
       // Update values
       updateTemperature(temperature);
       updateSoilMoisture(soilMoisture);
-      updateWaterLevel(waterLevel);
     });
   }
 
@@ -288,7 +266,6 @@ class PlantData {
     _dataFetchTimer?.cancel();
     _temperatureController.close();
     _soilMoistureController.close();
-    _waterLevelController.close();
     _plantHealthController.close();
     _connectionStatusController.close();
     _esp32Service.dispose();
