@@ -55,25 +55,6 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       _plantData.temperatureHistory.isEmpty
           ? [25, 24, 26, 27, 26, 25, 26]
           : _plantData.temperatureHistory,
-
-      // Light exposure history (last 7 days)
-      _plantData.lightExposureHistory.isEmpty
-          ? [70, 75, 68, 72, 80, 78, 78]
-          : _plantData.lightExposureHistory
-              .map((value) => value.toDouble())
-              .toList(),
-
-      // pH history (last 7 days)
-      _plantData.soilPhHistory.isEmpty
-          ? [6.4, 6.4, 6.5, 6.6, 6.5, 6.5, 6.5]
-          : _plantData.soilPhHistory,
-
-      // Nutrient level history (last 7 days)
-      _plantData.nutrientLevelHistory.isEmpty
-          ? [48, 46, 45, 44, 43, 42, 42]
-          : _plantData.nutrientLevelHistory
-              .map((value) => value.toDouble())
-              .toList(),
     ];
 
     // Ensure each history list has at least 7 items for display
@@ -85,10 +66,6 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
         } else if (i == 0) {
           // Soil moisture
           _historyData[i].insert(0, _plantData.soilMoisture.toDouble());
-        } else {
-          // Default values for other metrics
-          _historyData[i].insert(
-              0, _historyData[i].isNotEmpty ? _historyData[i].first : 0);
         }
       }
 
@@ -119,33 +96,6 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
         'color': Colors.orange,
         'recommendation': 'Optimal range: 20-28°C',
         'status': _getStatusForTemperature(_plantData.temperature),
-      },
-      {
-        'name': 'Light Exposure',
-        'value': 78,
-        'unit': '%',
-        'icon': Icons.wb_sunny,
-        'color': Colors.amber,
-        'recommendation': 'Optimal range: 60-80%',
-        'status': 'Good',
-      },
-      {
-        'name': 'Soil pH',
-        'value': 6.5,
-        'unit': 'pH',
-        'icon': Icons.science,
-        'color': Colors.purple,
-        'recommendation': 'Optimal range: 6.0-7.0',
-        'status': 'Good',
-      },
-      {
-        'name': 'Nutrient Level',
-        'value': 42,
-        'unit': '%',
-        'icon': Icons.spa,
-        'color': Colors.green,
-        'recommendation': 'Consider adding fertilizer soon',
-        'status': 'Moderate',
       },
     ];
   }
