@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../models/plant_data.dart'; // Import the PlantData model
 
 class PlantHealthScreen extends StatefulWidget {
   const PlantHealthScreen({super.key});
@@ -9,68 +10,14 @@ class PlantHealthScreen extends StatefulWidget {
 }
 
 class _PlantHealthScreenState extends State<PlantHealthScreen> {
+  // Get instance of PlantData singleton
+  final PlantData _plantData = PlantData();
+
   // Sample data for demonstration
-  final List<Map<String, dynamic>> _healthMetrics = [
-    {
-      'name': 'Soil Moisture',
-      'value': 56,
-      'unit': '%',
-      'icon': Icons.water_drop,
-      'color': Colors.blue,
-      'recommendation': 'Optimal range: 40-60%',
-      'status': 'Good',
-    },
-    {
-      'name': 'Temperature',
-      'value': 26.0,
-      'unit': '°C',
-      'icon': Icons.thermostat,
-      'color': Colors.orange,
-      'recommendation': 'Optimal range: 20-28°C',
-      'status': 'Good',
-    },
-    {
-      'name': 'Light Exposure',
-      'value': 78,
-      'unit': '%',
-      'icon': Icons.wb_sunny,
-      'color': Colors.amber,
-      'recommendation': 'Optimal range: 60-80%',
-      'status': 'Good',
-    },
-    {
-      'name': 'Soil pH',
-      'value': 6.5,
-      'unit': 'pH',
-      'icon': Icons.science,
-      'color': Colors.purple,
-      'recommendation': 'Optimal range: 6.0-7.0',
-      'status': 'Good',
-    },
-    {
-      'name': 'Nutrient Level',
-      'value': 42,
-      'unit': '%',
-      'icon': Icons.spa,
-      'color': Colors.green,
-      'recommendation': 'Consider adding fertilizer soon',
-      'status': 'Moderate',
-    },
-  ];
+  late List<Map<String, dynamic>> _healthMetrics;
 
   // History data for charts
-  final List<List<double>> _historyData = [
-    // Soil moisture history (last 7 days)
-    [50, 48, 52, 56, 54, 58, 56],
-    // Temperature history (last 7 days)
-    [25, 24, 26, 27, 26, 25, 26],
-    // Light exposure history (last 7 days)
-    [70, 75, 68, 72, 80, 78, 78],
-    // pH history (last 7 days)
-    [6.4, 6.4, 6.5, 6.6, 6.5, 6.5, 6.5],
-    // Nutrient level history (last 7 days)
-    [48, 46, 45, 44, 43, 42, 42],
-  ];
+  late List<List<double>> _historyData;
 
   // Dates for x-axis
   final List<String> _lastSevenDays = [
@@ -86,6 +33,148 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
   int _selectedMetricIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize history data
+    _initializeHistoryData();
+    // Initialize the health metrics with current plant data
+    _initializeHealthMetrics();
+  }
+
+  // Initialize history data with values from PlantData when available
+  void _initializeHistoryData() {
+    _historyData = [
+      // Soil moisture history (last 7 days)
+      _plantData.soilMoistureHistory.isEmpty
+          ? [50, 48, 52, 56, 54, 58, 56]
+          : _plantData.soilMoistureHistory
+              .map((value) => value.toDouble())
+              .toList(),
+
+      // Temperature history (last 7 days)
+      _plantData.temperatureHistory.isEmpty
+          ? [25, 24, 26, 27, 26, 25, 26]
+          : _plantData.temperatureHistory,
+
+      // Light exposure history (last 7 days)
+      _plantData.lightExposureHistory.isEmpty
+          ? [70, 75, 68, 72, 80, 78, 78]
+          : _plantData.lightExposureHistory
+              .map((value) => value.toDouble())
+              .toList(),
+
+      // pH history (last 7 days)
+      _plantData.soilPhHistory.isEmpty
+          ? [6.4, 6.4, 6.5, 6.6, 6.5, 6.5, 6.5]
+          : _plantData.soilPhHistory,
+
+      // Nutrient level history (last 7 days)
+      _plantData.nutrientLevelHistory.isEmpty
+          ? [48, 46, 45, 44, 43, 42, 42]
+          : _plantData.nutrientLevelHistory
+              .map((value) => value.toDouble())
+              .toList(),
+    ];
+
+    // Ensure each history list has at least 7 items for display
+    for (int i = 0; i < _historyData.length; i++) {
+      while (_historyData[i].length < 7) {
+        if (i == 1) {
+          // Temperature
+          _historyData[i].insert(0, _plantData.temperature);
+        } else if (i == 0) {
+          // Soil moisture
+          _historyData[i].insert(0, _plantData.soilMoisture.toDouble());
+        } else {
+          // Default values for other metrics
+          _historyData[i].insert(
+              0, _historyData[i].isNotEmpty ? _historyData[i].first : 0);
+        }
+      }
+
+      // Trim lists to 7 items if they're longer
+      if (_historyData[i].length > 7) {
+        _historyData[i] = _historyData[i].sublist(_historyData[i].length - 7);
+      }
+    }
+  }
+
+  // Initialize health metrics with current plant data
+  void _initializeHealthMetrics() {
+    _healthMetrics = [
+      {
+        'name': 'Soil Moisture',
+        'value': _plantData.soilMoisture,
+        'unit': '%',
+        'icon': Icons.water_drop,
+        'color': Colors.blue,
+        'recommendation': 'Optimal range: 40-60%',
+        'status': _getStatusForMoisture(_plantData.soilMoisture),
+      },
+      {
+        'name': 'Temperature',
+        'value': _plantData.temperature,
+        'unit': '°C',
+        'icon': Icons.thermostat,
+        'color': Colors.orange,
+        'recommendation': 'Optimal range: 20-28°C',
+        'status': _getStatusForTemperature(_plantData.temperature),
+      },
+      {
+        'name': 'Light Exposure',
+        'value': 78,
+        'unit': '%',
+        'icon': Icons.wb_sunny,
+        'color': Colors.amber,
+        'recommendation': 'Optimal range: 60-80%',
+        'status': 'Good',
+      },
+      {
+        'name': 'Soil pH',
+        'value': 6.5,
+        'unit': 'pH',
+        'icon': Icons.science,
+        'color': Colors.purple,
+        'recommendation': 'Optimal range: 6.0-7.0',
+        'status': 'Good',
+      },
+      {
+        'name': 'Nutrient Level',
+        'value': 42,
+        'unit': '%',
+        'icon': Icons.spa,
+        'color': Colors.green,
+        'recommendation': 'Consider adding fertilizer soon',
+        'status': 'Moderate',
+      },
+    ];
+  }
+
+  // Helper method to determine moisture status
+  String _getStatusForMoisture(int moisture) {
+    if (moisture >= 40 && moisture <= 60) {
+      return 'Good';
+    } else if (moisture < 30) {
+      return 'Low';
+    } else if (moisture > 80) {
+      return 'High';
+    } else {
+      return 'Moderate';
+    }
+  }
+
+  // Helper method to determine temperature status
+  String _getStatusForTemperature(double temp) {
+    if (temp >= 20 && temp <= 28) {
+      return 'Good';
+    } else if (temp < 15 || temp > 35) {
+      return 'Critical';
+    } else {
+      return 'Moderate';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -93,28 +182,54 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
         backgroundColor: Colors.green.withOpacity(0.8),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Overall health status card
-              _buildOverallHealthCard(),
+      body: StreamBuilder<double>(
+          // Listen to temperature changes
+          stream: _plantData.temperatureStream,
+          initialData: _plantData.temperature,
+          builder: (context, tempSnapshot) {
+            // Update temperature in health metrics when temperature changes
+            if (tempSnapshot.hasData) {
+              _healthMetrics[1]['value'] = tempSnapshot.data;
+              _healthMetrics[1]['status'] =
+                  _getStatusForTemperature(tempSnapshot.data!);
+            }
 
-              const SizedBox(height: 20),
+            return StreamBuilder<int>(
+                // Listen to moisture changes
+                stream: _plantData.soilMoistureStream,
+                initialData: _plantData.soilMoisture,
+                builder: (context, moistureSnapshot) {
+                  // Update soil moisture in health metrics when moisture changes
+                  if (moistureSnapshot.hasData) {
+                    _healthMetrics[0]['value'] = moistureSnapshot.data;
+                    _healthMetrics[0]['status'] =
+                        _getStatusForMoisture(moistureSnapshot.data!);
+                  }
 
-              // Health metrics grid
-              _buildHealthMetricsGrid(),
+                  return SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Overall health status card
+                          _buildOverallHealthCard(),
 
-              const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-              // Historical data section
-              _buildHistoricalDataSection(),
-            ],
-          ),
-        ),
-      ),
+                          // Health metrics grid
+                          _buildHealthMetricsGrid(),
+
+                          const SizedBox(height: 20),
+
+                          // Historical data section
+                          _buildHistoricalDataSection(),
+                        ],
+                      ),
+                    ),
+                  );
+                });
+          }),
     );
   }
 
@@ -233,6 +348,17 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       itemCount: _healthMetrics.length,
       itemBuilder: (context, index) {
         final metric = _healthMetrics[index];
+        // Format the display value based on type
+        String displayValue;
+        if (metric['name'] == 'Temperature') {
+          // Format temperature to show only 1 decimal place
+          double tempValue = (metric['value'] as double);
+          displayValue = '${tempValue.toStringAsFixed(1)}${metric['unit']}';
+        } else {
+          // Keep original formatting for other metrics
+          displayValue = '${metric['value']}${metric['unit']}';
+        }
+
         return GestureDetector(
           onTap: () {
             setState(() {
@@ -270,7 +396,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${metric['value']}${metric['unit']}',
+                    displayValue,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -310,6 +436,25 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
 
   Widget _buildHistoricalDataSection() {
     final selectedMetric = _healthMetrics[_selectedMetricIndex];
+
+    // Update the temperature history data with latest temperature value
+    if (_selectedMetricIndex == 1 &&
+        _plantData.temperature != _historyData[1].last) {
+      // Remove the oldest temperature value
+      _historyData[1].removeAt(0);
+      // Add the current temperature
+      _historyData[1].add(_plantData.temperature);
+    }
+
+    // Update the soil moisture history data with latest moisture value
+    if (_selectedMetricIndex == 0 &&
+        _plantData.soilMoisture.toDouble() != _historyData[0].last) {
+      // Remove the oldest moisture value
+      _historyData[0].removeAt(0);
+      // Add the current moisture
+      _historyData[0].add(_plantData.soilMoisture.toDouble());
+    }
+
     final historyData = _historyData[_selectedMetricIndex];
 
     return Card(
