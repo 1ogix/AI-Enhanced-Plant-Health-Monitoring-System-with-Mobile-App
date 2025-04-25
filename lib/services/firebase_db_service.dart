@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../services/firebase_auth_service.dart';
-import '../services/firebase_config.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import '../services/firebase_auth_service.dart';
+// import '../services/firebase_config.dart';
 
 class FirebaseDbService {
   // Singleton pattern
@@ -13,7 +13,7 @@ class FirebaseDbService {
   final FirebaseDatabase _database = FirebaseDatabase.instance;
 
   // Auth service to get user ID
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  // final FirebaseAuthService _authService = FirebaseAuthService();
 
   // Log messages stream
   final _logMessagesController = StreamController<String>.broadcast();
@@ -147,6 +147,47 @@ class FirebaseDbService {
         return <String, dynamic>{};
       }
     });
+  }
+
+  // Get irrigation settings
+  Future<Map<String, dynamic>?> getIrrigationSettings() async {
+    try {
+      final ref = _database.ref('plantData/irrigationSettings');
+      final snapshot = await ref.get();
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<Object?, Object?>;
+
+        // Convert to Map<String, dynamic>
+        final convertedData = <String, dynamic>{};
+        data.forEach((key, value) {
+          if (key is String) {
+            convertedData[key] = value;
+          }
+        });
+
+        _logMessage('Received irrigation settings: $convertedData');
+        return convertedData;
+      } else {
+        _logMessage('No irrigation settings found');
+        return null;
+      }
+    } catch (e) {
+      _logMessage('Error fetching irrigation settings: $e');
+      return null;
+    }
+  }
+
+  // Save irrigation settings
+  Future<void> saveIrrigationSettings(Map<String, dynamic> settings) async {
+    try {
+      final ref = _database.ref('plantData/irrigationSettings');
+      await ref.set(settings);
+      _logMessage('Saved irrigation settings: $settings');
+    } catch (e) {
+      _logMessage('Error saving irrigation settings: $e');
+      throw e;
+    }
   }
 
   void _logMessage(String message) {

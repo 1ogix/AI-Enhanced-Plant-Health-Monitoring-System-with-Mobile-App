@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/plant_data.dart';
+// import '../models/plant_data.dart';
 import '../services/firebase_db_service.dart';
 
 class LogsScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class LogsScreen extends StatefulWidget {
 
 class _LogsScreenState extends State<LogsScreen> {
   final FirebaseDbService _dbService = FirebaseDbService();
-  final PlantData _plantData = PlantData();
+  // final PlantData _plantData = PlantData();
 
   List<Map<String, dynamic>> _historyData = [];
   bool _isLoading = true;

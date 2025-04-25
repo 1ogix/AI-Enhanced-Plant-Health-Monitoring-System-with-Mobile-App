@@ -4,7 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/plant_health_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/logs_screen.dart'; // Add import for LogsScreen
+import 'screens/logs_screen.dart';
+import 'screens/irrigation_control_screen.dart'; // Import our new screen
 import 'widgets/sidebar.dart';
 import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
@@ -160,11 +161,10 @@ class _MainScreenState extends State<MainScreen>
     const HomeScreen(),
     const PlantHealthScreen(),
     // You'll need to create these screens
-    // const SizedBox(child: Center(child: Text('Plant Health Screen'))),
     const SizedBox(child: Center(child: Text('Developer Tools Screen'))),
-    const SizedBox(child: Center(child: Text('Irrigation Screen'))),
+    const IrrigationControlScreen(), // Use our new irrigation control screen
     const SettingsScreen(),
-    const LogsScreen(), // Update to use the new LogsScreen
+    const LogsScreen(),
   ];
 
   @override
