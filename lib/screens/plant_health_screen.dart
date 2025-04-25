@@ -46,7 +46,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
     _historyData = [
       // Soil moisture history (last 7 days)
       _plantData.soilMoistureHistory.isEmpty
-          ? [50, 48, 52, 56, 54, 58, 56]
+          ? [50, 48, 52, 56, 54, 58, 56] // Sample data with realistic values
           : _plantData.soilMoistureHistory
               .map((value) => value.toDouble())
               .toList(),
@@ -57,8 +57,20 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
           : _plantData.temperatureHistory,
     ];
 
-    // Ensure each history list has at least 7 items for display
+    // Ensure each history list has exactly 7 items for display
     for (int i = 0; i < _historyData.length; i++) {
+      // If history is completely empty, use sample data instead of current reading
+      if (_historyData[i].isEmpty) {
+        if (i == 0) {
+          // Soil moisture
+          _historyData[i] = [50, 48, 52, 56, 54, 58, 56];
+        } else if (i == 1) {
+          // Temperature
+          _historyData[i] = [25, 24, 26, 27, 26, 25, 26];
+        }
+      }
+
+      // Add current values if list is shorter than 7 items
       while (_historyData[i].length < 7) {
         if (i == 1) {
           // Temperature
@@ -487,6 +499,15 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                   .toList();
             }
 
+            // If history data is still empty after checking Firebase, use sample data
+            if (_historyData[0].isEmpty) {
+              _historyData[0] = [50, 48, 52, 56, 54, 58, 56];
+            }
+
+            if (_historyData[1].isEmpty) {
+              _historyData[1] = [25, 24, 26, 27, 26, 25, 26];
+            }
+
             // Ensure each data list has 7 entries
             for (int i = 0; i < _historyData.length; i++) {
               while (_historyData[i].length < 7) {
@@ -508,6 +529,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
 
             final historyData = _historyData[_selectedMetricIndex];
 
+            // Rest of the method remains unchanged
             return Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -518,6 +540,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ...existing code...
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -581,27 +604,27 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                     const SizedBox(height: 16),
 
                     // Add refresh button to manually fetch history data
-                    _plantData.isConnectedToFirebase
-                        ? Center(
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Refresh History Data'),
-                              onPressed: () async {
-                                await _plantData.refreshData();
-                                // Reset history data from Firebase
-                                setState(() {
-                                  _initializeHistoryData();
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Historical data refreshed'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
+                    Center(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh History Data'),
+                        onPressed: () async {
+                          if (_plantData.isConnectedToFirebase) {
+                            await _plantData.refreshData();
+                          }
+                          // Reset history data
+                          setState(() {
+                            _initializeHistoryData();
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Historical data refreshed'),
+                              duration: Duration(seconds: 2),
                             ),
-                          )
-                        : const SizedBox.shrink(),
+                          );
+                        },
+                      ),
+                    ),
 
                     const SizedBox(height: 16),
 
