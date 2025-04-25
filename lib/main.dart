@@ -1,17 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/plant_health_screen.dart';
-// import 'screens/developer_tools_screen.dart';
-// import 'screens/irrigation_screen.dart';
-// import 'screens/settings_screen.dart';
-// import 'screens/logs_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/logs_screen.dart'; // Add import for LogsScreen
 import 'widgets/sidebar.dart';
+import 'services/firebase_config.dart';
+import 'services/esp32_service.dart';
 
-// TEST
-void main() {
-  runApp(const PlantMonitorApp());
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase with graceful error handling
+  try {
+    await Firebase.initializeApp(
+      options: FirebaseConfig.platformOptions,
+    );
+
+    // Request permissions
+    await _requestPermissions();
+
+    runApp(const PlantMonitorApp());
+  } catch (e) {
+    print('Firebase initialization error: $e');
+    // Run app in configuration error mode
+    runApp(const PlantMonitorConfigErrorApp());
+  }
 }
 
+// Request necessary permissions for the app
+Future<void> _requestPermissions() async {
+  // Request permissions required for connecting to ESP32 and sensors
+  await [
+    Permission.bluetooth,
+    Permission.bluetoothConnect,
+    Permission.bluetoothScan,
+    Permission.location,
+    Permission.locationWhenInUse,
+    Permission.storage,
+  ].request();
+
+  // Log the status of permissions
+  debugPrint('Bluetooth: ${await Permission.bluetooth.status}');
+  debugPrint('Bluetooth Connect: ${await Permission.bluetoothConnect.status}');
+  debugPrint('Bluetooth Scan: ${await Permission.bluetoothScan.status}');
+  debugPrint('Location: ${await Permission.location.status}');
+  debugPrint(
+      'Location When In Use: ${await Permission.locationWhenInUse.status}');
+  debugPrint('Storage: ${await Permission.storage.status}');
+}
+
+// Main app when Firebase is properly configured
 class PlantMonitorApp extends StatelessWidget {
   const PlantMonitorApp({super.key});
 
@@ -29,6 +70,76 @@ class PlantMonitorApp extends StatelessWidget {
   }
 }
 
+// Fallback app shown when Firebase configuration is missing or invalid
+class PlantMonitorConfigErrorApp extends StatelessWidget {
+  const PlantMonitorConfigErrorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Plant Monitor - Configuration Error',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
+        useMaterial3: true,
+      ),
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Configuration Error'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 80, color: Colors.red),
+              const SizedBox(height: 20),
+              const Text(
+                'Firebase Configuration Error',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Please follow these steps to configure Firebase:',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text('1. Copy the template configuration file:'),
+                      Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text(
+                          'lib/services/firebase_config_template.dart → lib/services/firebase_config.dart',
+                          style: TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                          '2. Edit the new file with your Firebase project details'),
+                      SizedBox(height: 10),
+                      Text('3. Restart the application'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Main screen with sidebar and content
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -52,8 +163,8 @@ class _MainScreenState extends State<MainScreen>
     // const SizedBox(child: Center(child: Text('Plant Health Screen'))),
     const SizedBox(child: Center(child: Text('Developer Tools Screen'))),
     const SizedBox(child: Center(child: Text('Irrigation Screen'))),
-    const SizedBox(child: Center(child: Text('Settings Screen'))),
-    const SizedBox(child: Center(child: Text('Logs Screen'))),
+    const SettingsScreen(),
+    const LogsScreen(), // Update to use the new LogsScreen
   ];
 
   @override
@@ -73,11 +184,15 @@ class _MainScreenState extends State<MainScreen>
         curve: Curves.easeInOut,
       ),
     );
+
+    // Start ESP32 connection monitoring
+    ESP32Service().startConnectionMonitoring();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    ESP32Service().stopConnectionMonitoring();
     super.dispose();
   }
 
@@ -104,7 +219,15 @@ class _MainScreenState extends State<MainScreen>
       body: Stack(
         children: [
           // Main content - always full width
-          _screens[_selectedIndex],
+          Column(
+            children: [
+              // ESP32 connection status banner
+              // const ESP32ConnectionStatusWidget(showDetailedError: true), //No ESP32 widget for now
+
+              // Content area
+              Expanded(child: _screens[_selectedIndex]),
+            ],
+          ),
 
           // Sidebar overlay with animation
           AnimatedBuilder(

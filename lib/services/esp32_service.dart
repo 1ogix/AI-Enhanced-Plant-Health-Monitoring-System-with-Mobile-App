@@ -1,112 +1,228 @@
 import 'dart:async';
-import 'dart:convert';
-import '../services/http_client.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 
 class ESP32Service {
+  // Using a static IP for ESP32 on the shared WiFi network
+  static String baseUrl =
+      'http://192.168.1.100'; // Assumed IP of ESP32 on the network
+  static const Duration defaultTimeout = Duration(seconds: 5);
+
   // Singleton pattern
   static final ESP32Service _instance = ESP32Service._internal();
   factory ESP32Service() => _instance;
-
-  // ESP32 AP Default IP
-  String ipAddress = '192.168.4.1';
-
-  // HTTP client for making requests
-  final _httpClient = HttpClient();
-
-  // Connection status
-  bool _isConnected = false;
-  bool get isConnected => _isConnected;
+  ESP32Service._internal();
 
   // Connection status stream
-  final _connectionStatusController = StreamController<bool>.broadcast();
-  Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
+  final _connectionStatusController =
+      StreamController<ConnectionStatus>.broadcast();
+  Stream<ConnectionStatus> get connectionStatus =>
+      _connectionStatusController.stream;
+
+  // Last known connection status
+  ConnectionStatus _lastStatus = ConnectionStatus.unknown;
+  ConnectionStatus get lastStatus => _lastStatus;
+
+  // Timer for periodic connection checks
+  Timer? _connectionTimer;
 
   // Log messages stream
   final _logMessagesController = StreamController<String>.broadcast();
   Stream<String> get logMessages => _logMessagesController.stream;
 
-  // Timer for periodic connection check
-  Timer? _connectionCheckTimer;
+  // Initialize connection monitoring
+  void startConnectionMonitoring(
+      {Duration checkInterval = const Duration(seconds: 10)}) {
+    // Cancel any existing timer
+    _connectionTimer?.cancel();
 
-  ESP32Service._internal() {
-    // Start connection check timer
-    _startConnectionCheck();
-  }
-
-  void _startConnectionCheck() {
-    _connectionCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    // Start periodic checking
+    _connectionTimer = Timer.periodic(checkInterval, (_) {
       checkConnection();
     });
+
+    // Do an immediate check
+    checkConnection();
   }
 
-  Future<void> checkConnection() async {
-    try {
-      final response =
-          await _httpClient.get('http://$ipAddress/api/sensor-data');
-
-      final wasConnected = _isConnected;
-      _isConnected = response != null;
-
-      // Only add to stream if status has changed
-      if (wasConnected != _isConnected) {
-        _connectionStatusController.add(_isConnected);
-
-        if (_isConnected) {
-          _logMessage('Connected to ESP32 at $ipAddress');
-        } else {
-          _logMessage('Disconnected from ESP32');
-        }
-      }
-    } catch (e) {
-      if (_isConnected) {
-        _isConnected = false;
-        _connectionStatusController.add(false);
-        _logMessage('Connection to ESP32 lost: $e');
-      }
-    }
+  // Stop connection monitoring
+  void stopConnectionMonitoring() {
+    _connectionTimer?.cancel();
+    _connectionTimer = null;
   }
 
-  Future<Map<String, dynamic>?> getSensorData() async {
-    if (!_isConnected) {
-      await checkConnection();
-      if (!_isConnected) {
-        _logMessage('Cannot fetch sensor data: Not connected to ESP32');
-        return null;
-      }
-    }
-
+  // Check connection to ESP32
+  Future<ConnectionStatus> checkConnection() async {
     try {
-      final data = await _httpClient.get('http://$ipAddress/api/sensor-data');
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/status'),
+          )
+          .timeout(defaultTimeout);
 
-      if (data != null) {
-        _logMessage('Received sensor data: ${json.encode(data)}');
-        return data;
+      if (response.statusCode == 200) {
+        _log('ESP32 connected successfully');
+        _updateStatus(ConnectionStatus.connected);
+        return ConnectionStatus.connected;
       } else {
-        _logMessage('Error fetching sensor data');
+        _log('ESP32 connection error: HTTP ${response.statusCode}');
+        _updateStatus(ConnectionStatus.error);
+        return ConnectionStatus.error;
+      }
+    } on TimeoutException {
+      _log('ESP32 connection timeout');
+      _updateStatus(ConnectionStatus.timeout);
+      return ConnectionStatus.timeout;
+    } catch (e) {
+      _log('ESP32 connection error: $e');
+      _updateStatus(ConnectionStatus.error);
+      return ConnectionStatus.error;
+    }
+  }
+
+  // Get sensor data with error handling
+  Future<Map<String, dynamic>?> getSensorData() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/sensor-data'),
+          )
+          .timeout(defaultTimeout);
+
+      if (response.statusCode == 200) {
+        _updateStatus(ConnectionStatus.connected);
+        // In a real app, you would parse the JSON response
+        return {'status': 'success', 'data': response.body};
+      } else {
+        _updateStatus(ConnectionStatus.error);
         return null;
       }
+    } on TimeoutException {
+      _updateStatus(ConnectionStatus.timeout);
+      return null;
     } catch (e) {
-      _isConnected = false;
-      _connectionStatusController.add(false);
-      _logMessage('Error fetching sensor data: $e');
+      _updateStatus(ConnectionStatus.error);
       return null;
     }
   }
 
-  void _logMessage(String message) {
-    print('ESP32Service: $message');
+  // Private method to update status
+  void _updateStatus(ConnectionStatus status) {
+    if (_lastStatus != status) {
+      _lastStatus = status;
+      _connectionStatusController.add(status);
+    }
+  }
+
+  // Log messages
+  void _log(String message) {
     _logMessagesController.add(message);
   }
 
-  void updateIPAddress(String newIP) {
-    ipAddress = newIP;
-    _logMessage('ESP32 IP address updated to $newIP');
-    checkConnection();
-  }
-
+  // Dispose resources
   void dispose() {
-    _connectionCheckTimer?.cancel();
+    _connectionTimer?.cancel();
     _connectionStatusController.close();
     _logMessagesController.close();
   }
 }
+
+// Enum for connection status
+enum ConnectionStatus { unknown, connected, timeout, error }
+
+// Widget to display ESP32 connection status
+// class ESP32ConnectionStatusWidget extends StatelessWidget {
+//   final bool showDetailedError;
+  
+//   const ESP32ConnectionStatusWidget({
+//     Key? key, 
+//     this.showDetailedError = false,
+//   }) : super(key: key);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return StreamBuilder<ConnectionStatus>(
+//       stream: ESP32Service().connectionStatus,
+//       initialData: ESP32Service().lastStatus,
+//       builder: (context, snapshot) {
+//         final status = snapshot.data ?? ConnectionStatus.unknown;
+        
+//         // Return appropriate UI based on connection status
+//         switch (status) {
+//           case ConnectionStatus.connected:
+//             return const SizedBox.shrink(); // No banner when connected
+            
+//           case ConnectionStatus.timeout:
+//             return _buildStatusBanner(
+//               context,
+//               Colors.orange,
+//               'ESP32 Connection Timeout',
+//               showDetailedError 
+//                   ? 'Unable to connect to ESP32. Make sure both devices are on the same WiFi network (SSID: DEANDRE 2.4)' 
+//                   : null,
+//             );
+            
+//           case ConnectionStatus.error:
+//             return _buildStatusBanner(
+//               context,
+//               Colors.red,
+//               'ESP32 Connection Error',
+//               showDetailedError ? 'Failed to connect to ESP32 device' : null,
+//             );
+            
+//           case ConnectionStatus.unknown:
+//           default:
+//             return _buildStatusBanner(
+//               context,
+//               Colors.grey,
+//               'ESP32 Status Unknown',
+//               showDetailedError ? 'Checking connection to ESP32...' : null,
+//             );
+//         }
+//       },
+//     );
+//   }
+  
+//   // Helper to build status banner
+//   Widget _buildStatusBanner(
+//     BuildContext context,
+//     Color color,
+//     String title,
+//     String? details,
+//   ) {
+//     return Container(
+//       width: double.infinity,
+//       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+//       color: color.withOpacity(0.2),
+//       child: Row(
+//         children: [
+//           Icon(Icons.wifi_off, color: color),
+//           const SizedBox(width: 8),
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               mainAxisSize: MainAxisSize.min,
+//               children: [
+//                 Text(
+//                   title,
+//                   style: TextStyle(
+//                     fontWeight: FontWeight.bold,
+//                     color: color,
+//                   ),
+//                 ),
+//                 if (details != null)
+//                   Text(
+//                     details,
+//                     style: TextStyle(
+//                       fontSize: 12,
+//                       color: color.withOpacity(0.8),
+//                     ),
+//                   ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }

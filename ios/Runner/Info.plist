@@ -45,5 +45,23 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Permission descriptions for iOS -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>We need access to Bluetooth to connect to the irrigation system and plant sensors.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>We need access to Bluetooth to connect to the irrigation system and plant sensors.</string>
+	
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need access to your location to help you monitor plants in your vicinity.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need access to your location to help you monitor plants in your vicinity.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need access to your location to help you monitor plants in your vicinity.</string>
+	
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to save plant images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need access to your photo library to save plant images.</string>
 </dict>
 </plist>

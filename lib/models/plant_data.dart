@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../services/esp32_service.dart';
+import '../services/firebase_db_service.dart';
 
 class PlantData {
   // Singleton pattern
@@ -9,8 +9,8 @@ class PlantData {
     return _instance;
   }
 
-  // ESP32 service
-  final ESP32Service _esp32Service = ESP32Service();
+  // Firebase database service
+  final FirebaseDbService _firebaseDbService = FirebaseDbService();
 
   // Current sensor values
   double temperature = 0.0;
@@ -19,7 +19,7 @@ class PlantData {
   double soilPh = 0.0;
   int nutrientLevel = 0;
   String plantHealth = 'UNKNOWN';
-  bool isConnectedToESP32 = false;
+  bool isConnectedToFirebase = false;
 
   // Historical data (last 7 days)
   final List<double> temperatureHistory = [];
@@ -39,12 +39,15 @@ class PlantData {
   Stream<int> get soilMoistureStream => _soilMoistureController.stream;
   Stream<String> get plantHealthStream => _plantHealthController.stream;
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
-  Stream<String> get logMessages => _esp32Service.logMessages;
+  Stream<String> get logMessages => _firebaseDbService.logMessages;
 
   // Timer for data fetching
   Timer? _dataFetchTimer;
   Timer? _simulationTimer;
   bool _useSimulation = true;
+
+  // Subscribe to the Firebase stream
+  StreamSubscription? _firebaseDataSubscription;
 
   PlantData._internal() {
     // Initialize with default values
@@ -61,74 +64,150 @@ class PlantData {
       nutrientLevelHistory.add(0);
     }
 
-    // Listen to ESP32 connection status
-    _esp32Service.connectionStatusStream.listen((connected) {
-      isConnectedToESP32 = connected;
+    // Listen to Firebase connection status
+    _firebaseDbService.connectionStatusStream.listen((connected) {
+      isConnectedToFirebase = connected;
       _connectionStatusController.add(connected);
 
       if (connected) {
         _useSimulation = false;
         stopSimulation();
-        _startDataFetching();
+        _setupFirebaseDataStream();
+        _fetchHistoricalData();
       } else {
         _useSimulation = true;
-        _dataFetchTimer?.cancel();
-        _startSimulation();
-      }
-    });
-
-    // Initial connection check
-    _esp32Service.checkConnection().then((_) {
-      if (_esp32Service.isConnected) {
-        isConnectedToESP32 = true;
-        _useSimulation = false;
-        _connectionStatusController.add(true);
-        _startDataFetching();
-      } else {
-        // Fall back to simulation if not connected
+        _closeFirebaseDataStream();
         _startSimulation();
       }
     });
   }
 
-  void _startDataFetching() {
-    // Cancel any existing timer
-    _dataFetchTimer?.cancel();
+  void _setupFirebaseDataStream() {
+    // Close any existing subscription
+    _closeFirebaseDataStream();
 
-    // Fetch data immediately
-    _fetchSensorData();
-
-    // Setup timer to fetch data every 3 seconds
-    _dataFetchTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      _fetchSensorData();
+    // Subscribe to real-time updates
+    _firebaseDataSubscription =
+        _firebaseDbService.sensorDataStream().listen((data) {
+      if (data.isNotEmpty) {
+        _updateFromFirebaseData(data);
+      }
     });
   }
 
-  Future<void> _fetchSensorData() async {
-    final data = await _esp32Service.getSensorData();
+  void _closeFirebaseDataStream() {
+    _firebaseDataSubscription?.cancel();
+    _firebaseDataSubscription = null;
+  }
 
-    if (data != null) {
-      // Update temperature
-      if (data.containsKey('temperature')) {
-        double newTemp = data['temperature'].toDouble();
-        updateTemperature(newTemp);
-      }
+  Future<void> _fetchHistoricalData() async {
+    final historicalData = await _firebaseDbService.getHistoricalData(7);
 
-      // Update soil moisture
-      if (data.containsKey('soilMoisture')) {
-        int newMoisture = data['soilMoisture'].toInt();
-        updateSoilMoisture(newMoisture);
-      }
+    if (historicalData.isNotEmpty) {
+      // Clear existing history
+      temperatureHistory.clear();
+      soilMoistureHistory.clear();
+      lightExposureHistory.clear();
+      soilPhHistory.clear();
+      nutrientLevelHistory.clear();
 
-      // Update plant health if provided by ESP32
-      if (data.containsKey('plantHealth')) {
-        String newHealth = data['plantHealth'];
-        plantHealth = newHealth;
-        _plantHealthController.add(newHealth);
-      } else {
-        // Otherwise calculate it based on sensor data
-        _updatePlantHealth();
+      // Sort by timestamp if available
+      historicalData.sort((a, b) {
+        final aTime = a['timestamp'] as int?;
+        final bTime = b['timestamp'] as int?;
+        if (aTime != null && bTime != null) {
+          return aTime.compareTo(bTime);
+        }
+        return 0;
+      });
+
+      // Add to history lists
+      for (final entry in historicalData) {
+        if (entry.containsKey('temperature')) {
+          temperatureHistory.add(_getDoubleValue(entry['temperature']));
+        }
+
+        if (entry.containsKey('soilMoisture')) {
+          soilMoistureHistory.add(_getIntValue(entry['soilMoisture']));
+        }
+
+        if (entry.containsKey('lightExposure')) {
+          lightExposureHistory.add(_getIntValue(entry['lightExposure']));
+        }
+
+        if (entry.containsKey('soilPh')) {
+          soilPhHistory.add(_getDoubleValue(entry['soilPh']));
+        }
+
+        if (entry.containsKey('nutrientLevel')) {
+          nutrientLevelHistory.add(_getIntValue(entry['nutrientLevel']));
+        }
       }
+    }
+  }
+
+  // Helper methods to safely convert values
+  double _getDoubleValue(dynamic value) {
+    if (value is int) {
+      return value.toDouble();
+    } else if (value is double) {
+      return value;
+    } else if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  int _getIntValue(dynamic value) {
+    if (value is int) {
+      return value;
+    } else if (value is double) {
+      return value.toInt();
+    } else if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
+
+  void _updateFromFirebaseData(Map<String, dynamic> data) {
+    // Update temperature
+    if (data.containsKey('temperature')) {
+      final newTemp = _getDoubleValue(data['temperature']);
+      updateTemperature(newTemp);
+    }
+
+    // Update soil moisture
+    if (data.containsKey('soilMoisture')) {
+      final newMoisture = _getIntValue(data['soilMoisture']);
+      updateSoilMoisture(newMoisture);
+    }
+
+    // Update plant health if provided
+    if (data.containsKey('plantHealth')) {
+      String newHealth = data['plantHealth'].toString();
+      plantHealth = newHealth;
+      _plantHealthController.add(newHealth);
+    } else {
+      // Otherwise calculate it based on sensor data
+      _updatePlantHealth();
+    }
+
+    // Update light exposure
+    if (data.containsKey('lightExposure')) {
+      final newLight = _getIntValue(data['lightExposure']);
+      updateLightExposure(newLight);
+    }
+
+    // Update soil pH
+    if (data.containsKey('soilPh')) {
+      final newPh = _getDoubleValue(data['soilPh']);
+      updateSoilPh(newPh);
+    }
+
+    // Update nutrient level
+    if (data.containsKey('nutrientLevel')) {
+      final newNutrient = _getIntValue(data['nutrientLevel']);
+      updateNutrientLevel(newNutrient);
     }
   }
 
@@ -137,8 +216,8 @@ class PlantData {
     temperature = value;
     _temperatureController.add(value);
 
-    // Update health status based on temperature if not using ESP32's health status
-    if (!_esp32Service.isConnected) {
+    // Update health status based on temperature if not using Firebase's health status
+    if (!isConnectedToFirebase) {
       _updatePlantHealth();
     }
 
@@ -153,8 +232,8 @@ class PlantData {
     soilMoisture = value;
     _soilMoistureController.add(value);
 
-    // Update health status if not using ESP32's health status
-    if (!_esp32Service.isConnected) {
+    // Update health status if not using Firebase's health status
+    if (!isConnectedToFirebase) {
       _updatePlantHealth();
     }
 
@@ -255,19 +334,28 @@ class PlantData {
     _simulationTimer = null;
   }
 
-  void connectToESP32(String ipAddress) {
-    _esp32Service.updateIPAddress(ipAddress);
-    _esp32Service.checkConnection();
+  // Method to manually fetch latest data from Firebase
+  Future<void> refreshData() async {
+    if (!isConnectedToFirebase) {
+      return;
+    }
+
+    final data = await _firebaseDbService.getLatestSensorData();
+    if (data != null && data.isNotEmpty) {
+      _updateFromFirebaseData(data);
+      return;
+    }
   }
 
   // Method to clean up streams
   void dispose() {
     stopSimulation();
     _dataFetchTimer?.cancel();
+    _closeFirebaseDataStream();
     _temperatureController.close();
     _soilMoistureController.close();
     _plantHealthController.close();
     _connectionStatusController.close();
-    _esp32Service.dispose();
+    _firebaseDbService.dispose();
   }
 }
