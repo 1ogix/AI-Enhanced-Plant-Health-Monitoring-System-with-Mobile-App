@@ -17,7 +17,7 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
   int _minutes = 0;
   int _seconds = 0;
   List<String> _selectedDays = ['Monday', 'Tuesday']; // Default selected days
-  Map<String, bool> _weekdays = {
+  final Map<String, bool> _weekdays = {
     'Monday': true,
     'Tuesday': true,
     'Wednesday': false,
@@ -303,7 +303,7 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
                             activeColor: Colors.green,
                             checkColor: Colors.white,
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),

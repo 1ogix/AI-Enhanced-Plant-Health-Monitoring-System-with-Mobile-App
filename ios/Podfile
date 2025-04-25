@@ -4,6 +4,9 @@ platform :ios, '12.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Xcode 16.2 compatibility
+ENV['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -56,6 +59,9 @@ post_install do |installer|
       
       # Fix for arm64 architecture issues
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      
+      # Xcode 16.2 compatibility settings
+      config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
       
       # Build active architecture only in debug mode
       if config.name == 'Debug'

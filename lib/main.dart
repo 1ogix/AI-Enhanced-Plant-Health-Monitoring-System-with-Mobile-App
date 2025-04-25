@@ -90,31 +90,31 @@ class PlantMonitorConfigErrorApp extends StatelessWidget {
           backgroundColor: Colors.red,
           foregroundColor: Colors.white,
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(20.0),
+        body: const Padding(
+          padding: EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 80, color: Colors.red),
-              const SizedBox(height: 20),
-              const Text(
+              Icon(Icons.error_outline, size: 80, color: Colors.red),
+              SizedBox(height: 20),
+              Text(
                 'Firebase Configuration Error',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
-              const Text(
+              SizedBox(height: 20),
+              Text(
                 'Please follow these steps to configure Firebase:',
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text('1. Copy the template configuration file:'),
                       Padding(
                         padding: EdgeInsets.all(8.0),

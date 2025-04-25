@@ -186,7 +186,7 @@ class FirebaseDbService {
       _logMessage('Saved irrigation settings: $settings');
     } catch (e) {
       _logMessage('Error saving irrigation settings: $e');
-      throw e;
+      rethrow;
     }
   }
 
