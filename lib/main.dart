@@ -1,59 +1,115 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/plant_health_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/logs_screen.dart';
-import 'screens/irrigation_control_screen.dart'; // Import our new screen
+import 'screens/irrigation_control_screen.dart';
 import 'widgets/sidebar.dart';
 import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
 
+// Global logger for debugging
+void log(String message) {
+  // ignore: avoid_print
+  print('[PlantApp] $message');
+}
+
 void main() async {
-  // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
+  // Wrap the entire app initialization in a zone to catch errors
+  runZonedGuarded(() async {
+    try {
+      // Ensure Flutter is initialized
+      WidgetsFlutterBinding.ensureInitialized();
+      log('Flutter initialized');
 
-  // Initialize Firebase with graceful error handling
-  try {
-    await Firebase.initializeApp(
-      options: FirebaseConfig.platformOptions,
-    );
+      // Initialize Firebase with graceful error handling
+      try {
+        // On iOS we'll use the GoogleService-Info.plist (default approach)
+        // On Android we'll use our custom options
+        if (Platform.isAndroid) {
+          await Firebase.initializeApp(
+            options: FirebaseConfig.platformOptions,
+          );
+        } else {
+          // For iOS, this will use the GoogleService-Info.plist
+          await Firebase.initializeApp();
+        }
+        log('Firebase initialized successfully');
+      } catch (e) {
+        log('Firebase initialization error: $e');
+        // We'll continue even if Firebase fails
+      }
 
-    // Request permissions
-    await _requestPermissions();
+      // Request permissions with delay to prevent startup issues
+      await Future.delayed(const Duration(seconds: 1));
 
-    runApp(const PlantMonitorApp());
-  } catch (e) {
-    print('Firebase initialization error: $e');
-    // Run app in configuration error mode
-    runApp(const PlantMonitorConfigErrorApp());
-  }
+      // Request permissions
+      await _requestPermissions();
+
+      // Run the app
+      runApp(const PlantMonitorApp());
+    } catch (e, stack) {
+      log('Error during app initialization: $e');
+      log('Stack trace: $stack');
+      // Still try to run the app
+      runApp(const PlantMonitorApp());
+    }
+  }, (error, stack) {
+    // This catches any errors not caught by the try/catch
+    log('Uncaught error: $error');
+    log('Stack trace: $stack');
+  });
 }
 
 // Request necessary permissions for the app
 Future<void> _requestPermissions() async {
-  // Request permissions required for connecting to ESP32 and sensors
-  await [
-    Permission.bluetooth,
-    Permission.bluetoothConnect,
-    Permission.bluetoothScan,
-    Permission.location,
-    Permission.locationWhenInUse,
-    Permission.storage,
-  ].request();
+  try {
+    // First check if we're running on an emulator/simulator
+    bool isRealDevice = true;
+    if (Platform.isIOS) {
+      // Simple heuristic - most simulators use specific deviceModel strings
+      final deviceModel = Platform.operatingSystemVersion;
+      if (deviceModel.toLowerCase().contains('simulator')) {
+        isRealDevice = false;
+      }
+    }
 
-  // Log the status of permissions
-  debugPrint('Bluetooth: ${await Permission.bluetooth.status}');
-  debugPrint('Bluetooth Connect: ${await Permission.bluetoothConnect.status}');
-  debugPrint('Bluetooth Scan: ${await Permission.bluetoothScan.status}');
-  debugPrint('Location: ${await Permission.location.status}');
-  debugPrint(
-      'Location When In Use: ${await Permission.locationWhenInUse.status}');
-  debugPrint('Storage: ${await Permission.storage.status}');
+    // Only request certain permissions on real devices
+    final permissionsToRequest = <Permission>[];
+
+    // Always request these
+    permissionsToRequest.addAll([
+      Permission.storage,
+    ]);
+
+    // Only on real devices request these
+    if (isRealDevice) {
+      permissionsToRequest.addAll([
+        Permission.bluetooth,
+        Permission.bluetoothConnect,
+        Permission.bluetoothScan,
+        Permission.location,
+        Permission.locationWhenInUse,
+      ]);
+    }
+
+    // Request the permissions
+    if (permissionsToRequest.isNotEmpty) {
+      log('Requesting permissions: $permissionsToRequest');
+      await permissionsToRequest.request();
+    }
+  } catch (e) {
+    log('Error requesting permissions: $e');
+    // Don't rethrow - just log the error
+  }
 }
 
-// Main app when Firebase is properly configured
+// Main app
 class PlantMonitorApp extends StatelessWidget {
   const PlantMonitorApp({super.key});
 
@@ -67,75 +123,6 @@ class PlantMonitorApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MainScreen(),
-    );
-  }
-}
-
-// Fallback app shown when Firebase configuration is missing or invalid
-class PlantMonitorConfigErrorApp extends StatelessWidget {
-  const PlantMonitorConfigErrorApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Plant Monitor - Configuration Error',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
-        useMaterial3: true,
-      ),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Configuration Error'),
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-        ),
-        body: const Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 80, color: Colors.red),
-              SizedBox(height: 20),
-              Text(
-                'Firebase Configuration Error',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Please follow these steps to configure Firebase:',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('1. Copy the template configuration file:'),
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Text(
-                          'lib/services/firebase_config_template.dart → lib/services/firebase_config.dart',
-                          style: TextStyle(fontFamily: 'monospace'),
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                          '2. Edit the new file with your Firebase project details'),
-                      SizedBox(height: 10),
-                      Text('3. Restart the application'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -185,101 +172,90 @@ class _MainScreenState extends State<MainScreen>
       ),
     );
 
-    // Start ESP32 connection monitoring
-    ESP32Service().startConnectionMonitoring();
+    // Delay ESP32 connection monitoring to prevent startup crashes
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        // Only start if widget is still mounted
+        try {
+          ESP32Service().startConnectionMonitoring();
+          log('ESP32 service started');
+        } catch (e) {
+          log('Error starting ESP32 service: $e');
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _animationController.dispose();
-    ESP32Service().stopConnectionMonitoring();
     super.dispose();
+  }
+
+  void _toggleSidebar() {
+    if (_isSidebarOpen) {
+      _animationController.reverse();
+    } else {
+      _animationController.forward();
+    }
+    setState(() {
+      _isSidebarOpen = !_isSidebarOpen;
+    });
   }
 
   void _onItemSelected(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  void _toggleSidebar() {
-    setState(() {
-      _isSidebarOpen = !_isSidebarOpen;
-      if (_isSidebarOpen) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
+    if (_isSidebarOpen) {
+      _toggleSidebar(); // Close sidebar after selection on mobile
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Plant Health Monitor'),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: _toggleSidebar,
+        ),
+      ),
       body: Stack(
         children: [
-          // Main content - always full width
-          Column(
-            children: [
-              // ESP32 connection status banner
-              // const ESP32ConnectionStatusWidget(showDetailedError: true), //No ESP32 widget for now
+          // Main content
+          _screens[_selectedIndex],
 
-              // Content area
-              Expanded(child: _screens[_selectedIndex]),
-            ],
-          ),
+          // Semi-transparent overlay when sidebar is open
+          if (_isSidebarOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggleSidebar,
+                child: Container(
+                  color: Colors.black.withOpacity(0.4),
+                ),
+              ),
+            ),
 
-          // Sidebar overlay with animation
+          // Animated sidebar (now as the last child so it's on top)
           AnimatedBuilder(
-            animation: _sidebarAnimation,
+            animation: _animationController,
             builder: (context, child) {
               return Positioned(
-                left: -200 * (1 - _sidebarAnimation.value),
+                left: -250 * (1 - _sidebarAnimation.value),
                 top: 0,
                 bottom: 0,
-                child: Container(
-                  width: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black
-                            .withOpacity(0.2 * _sidebarAnimation.value),
-                        blurRadius: 5,
-                        offset: const Offset(2, 0),
-                      ),
-                    ],
-                  ),
+                width: 250,
+                child: Material(
+                  elevation: 8.0,
                   child: Sidebar(
                     selectedIndex: _selectedIndex,
-                    onItemSelected: (index) {
-                      _onItemSelected(index);
-                      // Optionally close sidebar on mobile when item selected
-                      if (MediaQuery.of(context).size.width < 600) {
-                        _toggleSidebar();
-                      }
-                    },
+                    onItemSelected: _onItemSelected,
                   ),
                 ),
               );
             },
-          ),
-
-          // Floating action button for sidebar toggle
-          Positioned(
-            bottom: 20,
-            left: 20,
-            child: FloatingActionButton(
-              onPressed: _toggleSidebar,
-              tooltip: _isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar',
-              mini: false,
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              child: AnimatedIcon(
-                icon: AnimatedIcons.menu_close,
-                progress: _animationController,
-              ),
-            ),
           ),
         ],
       ),
