@@ -49,3 +49,4 @@ lib/services/firebase_config.dart
 lib/services/firebase_config_local.dart
 **/GoogleService-Info.plist
 **/google-services.json
+ios/Runner/GoogleService-Info.plist

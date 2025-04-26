@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyAqgm-umH8pw9t8TGPFSWr0B2XMfaWZS4Q</string>
+	<string>AIzaSyB3HECXDDrNN46JTvbClV3jFOStZqlZR9g</string>
 	<key>GCM_SENDER_ID</key>
 	<string>135847337972</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.plantHealthIrrigation</string>
+	<string>com.example.plantHealthMonitoring</string>
 	<key>PROJECT_ID</key>
 	<string>planthealthmonitoringsystem</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,7 +25,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:135847337972:ios:0bf1fc8d9d58caa1fe23a1</string>
+	<string>1:135847337972:ios:d7f490a7c566b042fe23a1</string>
 	<key>DATABASE_URL</key>
 	<string>https://planthealthmonitoringsystem-default-rtdb.asia-southeast1.firebasedatabase.app</string>
 </dict>
