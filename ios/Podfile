@@ -1,17 +1,17 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '12.0'
+platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-# Xcode 16.2 compatibility
-ENV['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
 
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
 }
+
+# This helps with Firebase module conflicts
+install! 'cocoapods', :deterministic_uuids => false
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -31,8 +31,8 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # CHANGE HERE: Use static frameworks instead of dynamic
-  use_frameworks! :linkage => :static
+  # Using frameworks without static linkage seems to help with Firebase module issues
+  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -48,24 +48,37 @@ post_install do |installer|
     
     target.build_configurations.each do |config|
       # Required minimum iOS version
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
       
-      # Fix for Firebase integration
+      # Critical settings for Firebase non-modular header includes
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      
-      # ADDED THESE TWO IMPORTANT SETTINGS
-      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
       config.build_settings['DEFINES_MODULE'] = 'YES'
+      config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
       
-      # Fix for arm64 architecture issues
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      # Allow warnings for firebase modules to suppress the non-modular includes errors
+      config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES' if target.name.include? 'Firebase'
+      config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES' if target.name.include? 'Firebase'
       
-      # Xcode 16.2 compatibility settings
-      config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
-      
-      # Build active architecture only in debug mode
+      # Architecture settings
       if config.name == 'Debug'
         config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      else
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      end
+      
+      # Disable code signing for pods to avoid common build issues
+      config.build_settings.delete('CODE_SIGNING_ALLOWED')
+      config.build_settings.delete('CODE_SIGNING_REQUIRED')
+      
+      # NEW ADDITIONS - Critical for fixing module redefinition errors
+      config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
+      
+      # Explicitly set modulemap path for Firebase
+      if target.name.include? 'Firebase'
+        config.build_settings['SWIFT_INCLUDE_PATHS'] = '$(inherited) "${PODS_ROOT}/Firebase/CoreOnly/Sources"'
+        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) "${PODS_ROOT}/Firebase/CoreOnly/Sources"'
       end
     end
   end

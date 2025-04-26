@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import '../services/firebase_db_service.dart';
 
 class IrrigationControlScreen extends StatefulWidget {
-  const IrrigationControlScreen({super.key});
+  final bool isFirebaseInitialized;
+  
+  const IrrigationControlScreen({
+    Key? key, 
+    this.isFirebaseInitialized = false
+  }) : super(key: key);
 
   @override
-  State<IrrigationControlScreen> createState() =>
-      _IrrigationControlScreenState();
+  State<IrrigationControlScreen> createState() => _IrrigationControlScreenState();
 }
 
 class _IrrigationControlScreenState extends State<IrrigationControlScreen> {

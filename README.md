@@ -13,30 +13,41 @@ A Flutter application for monitoring plant health metrics through a connected ES
 
 ### Firebase Configuration (Important Security Step)
 
-For security reasons, the Firebase configuration file is not included in the repository. To set up Firebase:
+For security reasons, the Firebase configuration files are not included in the repository. To set up Firebase:
 
-1. Copy the template file:
+#### For iOS:
 
-   ```
-   cp lib/services/firebase_config_template.dart lib/services/firebase_config.dart
-   ```
+1. Download the `GoogleService-Info.plist` file from your Firebase Console:
 
-2. Update `lib/services/firebase_config.dart` with your actual Firebase project values:
-   - API Key
-   - App ID
-   - Messaging Sender ID
-   - Project ID
-   - Database URL
-   - Storage Bucket
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Select your project
+   - Go to Project Settings
+   - Select the iOS app
+   - Download the `GoogleService-Info.plist` file
 
-You can find these values in your Firebase Console under Project Settings.
+2. Place the file in your project:
+   - Copy the downloaded file to `ios/Runner/` directory
+   - Add it to your Xcode project by opening Xcode:
+     ```
+     open ios/Runner.xcworkspace
+     ```
+   - Right-click on Runner in the project navigator
+   - Select "Add Files to 'Runner'"
+   - Navigate to and select the GoogleService-Info.plist file
+   - Ensure "Copy items if needed" is checked
+   - Click "Add"
+
+#### For Android:
+
+1. Download the `google-services.json` file from your Firebase Console
+2. Place it in the `android/app/` directory
 
 3. Make sure your Firebase Realtime Database security rules are properly configured to secure your data.
 
 ### Note:
 
-- Never commit your `firebase_config.dart` file to version control (it's already in .gitignore)
-- The configuration should match the ESP32 firmware configuration to ensure proper communication
+- Never commit your `GoogleService-Info.plist` or `google-services.json` files to version control (they're already in .gitignore)
+- The Firebase configuration should match the ESP32 firmware configuration to ensure proper communication
 
 ## Getting Started
 

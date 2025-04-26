@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../models/plant_data.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/firebase_db_service.dart';
+import '../services/esp32_service.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isFirebaseInitialized;
+
+  const HomeScreen({Key? key, this.isFirebaseInitialized = false})
+      : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -15,9 +20,122 @@ class _HomeScreenState extends State<HomeScreen> {
   final PlantData _plantData = PlantData();
   final FirebaseAuthService _authService = FirebaseAuthService();
   final FirebaseDbService _dbService = FirebaseDbService();
+  final ESP32Service _esp32Service = ESP32Service();
+  bool _isLoading = true;
+  String _connectionStatus = 'Checking connection...';
+  Map<String, dynamic>? _latestData;
+  bool _hasConnectionError = false;
 
   // Format for timestamps
   final DateFormat _dateFormat = DateFormat('HH:mm:ss');
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    setState(() {
+      _isLoading = true;
+      _connectionStatus = 'Initializing services...';
+    });
+
+    try {
+      // Only attempt to use Firebase if it's initialized
+      if (widget.isFirebaseInitialized) {
+        await _dbService.initialize();
+
+        // Get initial data
+        await _refreshData();
+
+        // Listen for connection status changes
+        _setupConnectionListeners();
+      } else {
+        setState(() {
+          _hasConnectionError = true;
+          _connectionStatus =
+              'Firebase not initialized. Check your connection.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error initializing services: $e');
+      setState(() {
+        _hasConnectionError = true;
+        _connectionStatus = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _setupConnectionListeners() {
+    // Listen for Firebase Database connection status
+    _dbService.connectionStatusStream.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          if (isConnected) {
+            _hasConnectionError = false;
+            _connectionStatus = 'Connected to Firebase';
+            _refreshData(); // Refresh data when connection is established
+          } else {
+            _hasConnectionError = true;
+            _connectionStatus = 'Disconnected from Firebase';
+          }
+        });
+      }
+    });
+
+    // Listen for ESP32 connection status
+    _esp32Service.connectionStatus.listen((status) {
+      if (mounted) {
+        setState(() {
+          if (status == ConnectionStatus.connected) {
+            _connectionStatus = 'Connected to ESP32';
+          } else if (!_hasConnectionError) {
+            // Only update if we don't already have a Firebase error
+            _connectionStatus = 'Disconnected from ESP32';
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> _refreshData() async {
+    if (!widget.isFirebaseInitialized) {
+      setState(() {
+        _isLoading = false;
+        _hasConnectionError = true;
+        _connectionStatus = 'Firebase not initialized. Check your connection.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = await _dbService.getLatestSensorData();
+
+      if (mounted) {
+        setState(() {
+          _latestData = data;
+          _isLoading = false;
+          _hasConnectionError = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasConnectionError = true;
+          _connectionStatus = 'Error fetching data: $e';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

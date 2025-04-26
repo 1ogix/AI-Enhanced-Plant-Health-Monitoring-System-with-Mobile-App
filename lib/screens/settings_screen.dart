@@ -4,7 +4,10 @@ import '../services/firebase_config.dart';
 import 'dart:async';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool isFirebaseInitialized;
+
+  const SettingsScreen({Key? key, this.isFirebaseInitialized = false})
+      : super(key: key);
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -33,8 +36,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _emailController.text = _authService.currentUser?.email ?? '';
     }
 
-    // Set API key from config
-    _webApiKeyController.text = FirebaseConfig.platformOptions.apiKey;
+    // Set API key from config - safely handle null case
+    _webApiKeyController.text =
+        FirebaseConfig.platformOptions?.apiKey ?? 'Using default configuration';
   }
 
   @override

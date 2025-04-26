@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/plant_health_screen.dart';
@@ -12,12 +11,17 @@ import 'screens/irrigation_control_screen.dart';
 import 'widgets/sidebar.dart';
 import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
+import 'services/firebase_db_service.dart';
+import 'services/firebase_auth_service.dart';
 
 // Global logger for debugging
 void log(String message) {
   // ignore: avoid_print
   print('[PlantApp] $message');
 }
+
+// Flag to track if Firebase is fully initialized
+bool isFirebaseInitialized = false;
 
 void main() async {
   // Wrap the entire app initialization in a zone to catch errors
@@ -28,36 +32,56 @@ void main() async {
       log('Flutter initialized');
 
       // Initialize Firebase with graceful error handling
+      // Replace this section in your main.dart:
+
+// Initialize Firebase with graceful error handling
       try {
-        // On iOS we'll use the GoogleService-Info.plist (default approach)
-        // On Android we'll use our custom options
-        if (Platform.isAndroid) {
-          await Firebase.initializeApp(
-            options: FirebaseConfig.platformOptions,
-          );
+        log('Attempting to initialize Firebase...');
+
+        // Simple direct initialization - don't use options at all
+        // This will automatically use GoogleService-Info.plist on iOS
+        // and google-services.json on Android
+        await Firebase.initializeApp();
+        log('Firebase Core initialized successfully');
+
+        // Check if Firebase was actually initialized
+        final apps = Firebase.apps;
+        log('Firebase apps initialized: ${apps.length}');
+
+        if (apps.isNotEmpty) {
+          isFirebaseInitialized = true;
+
+          // Initialize Firebase services
+          try {
+            log('Initializing Firebase Database Service...');
+            await FirebaseDbService().initialize();
+            log('Firebase Database Service initialized successfully');
+
+            log('Initializing Firebase Auth Service...');
+            await FirebaseAuthService().initialize();
+            log('Firebase Auth Service initialized successfully');
+          } catch (e) {
+            log('Error initializing Firebase services: $e');
+          }
         } else {
-          // For iOS, this will use the GoogleService-Info.plist
-          await Firebase.initializeApp();
+          log('Firebase initialization appeared to succeed but no apps were registered');
+          isFirebaseInitialized = false;
         }
-        log('Firebase initialized successfully');
       } catch (e) {
         log('Firebase initialization error: $e');
-        // We'll continue even if Firebase fails
+        isFirebaseInitialized = false;
       }
-
-      // Request permissions with delay to prevent startup issues
-      await Future.delayed(const Duration(seconds: 1));
 
       // Request permissions
       await _requestPermissions();
 
-      // Run the app
-      runApp(const PlantMonitorApp());
+      // Run the app, passing the Firebase initialization status
+      runApp(PlantMonitorApp(isFirebaseInitialized: isFirebaseInitialized));
     } catch (e, stack) {
       log('Error during app initialization: $e');
       log('Stack trace: $stack');
-      // Still try to run the app
-      runApp(const PlantMonitorApp());
+      // Still try to run the app with Firebase status
+      runApp(PlantMonitorApp(isFirebaseInitialized: false));
     }
   }, (error, stack) {
     // This catches any errors not caught by the try/catch
@@ -101,7 +125,10 @@ Future<void> _requestPermissions() async {
     // Request the permissions
     if (permissionsToRequest.isNotEmpty) {
       log('Requesting permissions: $permissionsToRequest');
-      await permissionsToRequest.request();
+      for (var permission in permissionsToRequest) {
+        var status = await permission.request();
+        log('Permission status for $permission: $status');
+      }
     }
   } catch (e) {
     log('Error requesting permissions: $e');
@@ -111,7 +138,9 @@ Future<void> _requestPermissions() async {
 
 // Main app
 class PlantMonitorApp extends StatelessWidget {
-  const PlantMonitorApp({super.key});
+  final bool isFirebaseInitialized;
+
+  const PlantMonitorApp({super.key, required this.isFirebaseInitialized});
 
   @override
   Widget build(BuildContext context) {
@@ -122,14 +151,16 @@ class PlantMonitorApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
+      home: MainScreen(isFirebaseInitialized: isFirebaseInitialized),
     );
   }
 }
 
 // Main screen with sidebar and content
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final bool isFirebaseInitialized;
+
+  const MainScreen({super.key, required this.isFirebaseInitialized});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -144,15 +175,7 @@ class _MainScreenState extends State<MainScreen>
   late AnimationController _animationController;
   late Animation<double> _sidebarAnimation;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const PlantHealthScreen(),
-    // You'll need to create these screens
-    const SizedBox(child: Center(child: Text('Developer Tools Screen'))),
-    const IrrigationControlScreen(), // Use our new irrigation control screen
-    const SettingsScreen(),
-    const LogsScreen(),
-  ];
+  late List<Widget> _screens;
 
   @override
   void initState() {
@@ -183,6 +206,24 @@ class _MainScreenState extends State<MainScreen>
           log('Error starting ESP32 service: $e');
         }
       }
+    });
+
+    // Update screen list with Firebase initialization status
+    _updateScreens();
+  }
+
+  // Update screens with Firebase status
+  void _updateScreens() {
+    setState(() {
+      _screens = [
+        HomeScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+        PlantHealthScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+        const SizedBox(child: Center(child: Text('Developer Tools Screen'))),
+        IrrigationControlScreen(
+            isFirebaseInitialized: widget.isFirebaseInitialized),
+        SettingsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+        LogsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+      ];
     });
   }
 

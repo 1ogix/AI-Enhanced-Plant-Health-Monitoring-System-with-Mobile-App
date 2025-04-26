@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 // import '../services/firebase_auth_service.dart';
 // import '../services/firebase_config.dart';
@@ -10,7 +11,8 @@ class FirebaseDbService {
   factory FirebaseDbService() => _instance;
 
   // Firebase database instance
-  final FirebaseDatabase _database = FirebaseDatabase.instance;
+  FirebaseDatabase? _database;
+  bool _isInitialized = false;
 
   // Auth service to get user ID
   // final FirebaseAuthService _authService = FirebaseAuthService();
@@ -27,26 +29,72 @@ class FirebaseDbService {
   final _connectionStatusController = StreamController<bool>.broadcast();
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
 
-  FirebaseDbService._internal() {
-    // Monitor connection state
-    final connectedRef = _database.ref('.info/connected');
-    connectedRef.onValue.listen((event) {
-      _isConnected = event.snapshot.value as bool? ?? false;
-      _connectionStatusController.add(_isConnected);
-
-      if (_isConnected) {
-        _logMessage('Connected to Firebase Realtime Database');
-      } else {
-        _logMessage('Disconnected from Firebase Realtime Database');
+  FirebaseDbService._internal();
+  
+  // Initialize Firebase
+  Future<void> initialize() async {
+    if (_isInitialized) {
+      _logMessage('FirebaseDbService already initialized');
+      return;
+    }
+    
+    try {
+      // Make sure Firebase is initialized before accessing FirebaseDatabase
+      if (Firebase.apps.isEmpty) {
+        _logMessage('Firebase not initialized yet. Firebase.initializeApp() must be called first.');
+        throw Exception('Firebase not initialized');
       }
-    });
+      
+      _database = FirebaseDatabase.instance;
+      _isInitialized = true;
+      _logMessage('Firebase database service initialized successfully');
+      
+      // Monitor connection state
+      try {
+        final connectedRef = _database!.ref('.info/connected');
+        connectedRef.onValue.listen((event) {
+          _isConnected = event.snapshot.value as bool? ?? false;
+          _connectionStatusController.add(_isConnected);
+
+          if (_isConnected) {
+            _logMessage('Connected to Firebase Realtime Database');
+          } else {
+            _logMessage('Disconnected from Firebase Realtime Database');
+          }
+        });
+      } catch (e) {
+        _logMessage('Error setting up connection monitoring: $e');
+        // Don't throw - we still want to consider the service initialized
+      }
+    } catch (e) {
+      _logMessage('Error initializing Firebase: $e');
+      _isInitialized = false;
+      throw e; // Rethrow to notify caller
+    }
+  }
+
+  // Check if initialized before any database operation
+  Future<void> _ensureInitialized() async {
+    if (!_isInitialized) {
+      await initialize();
+      if (!_isInitialized) {
+        throw Exception('Firebase database service is not initialized');
+      }
+    }
   }
 
   // Get latest sensor data
   Future<Map<String, dynamic>?> getLatestSensorData() async {
     try {
+      await _ensureInitialized();
+      
+      if (_database == null) {
+        _logMessage('Database instance is null, returning empty data');
+        return null;
+      }
+      
       // Match the ESP32 database path "plantData/current"
-      final ref = _database.ref('plantData/current');
+      final ref = _database!.ref('plantData/current');
       final snapshot = await ref.get();
 
       if (snapshot.exists) {
@@ -75,8 +123,15 @@ class FirebaseDbService {
   // Get historical sensor data
   Future<List<Map<String, dynamic>>> getHistoricalData(int days) async {
     try {
+      await _ensureInitialized();
+      
+      if (_database == null) {
+        _logMessage('Database instance is null, returning empty historical data');
+        return [];
+      }
+      
       // Match the ESP32 database path "plantData/history"
-      final ref = _database.ref('plantData/history');
+      final ref = _database!.ref('plantData/history');
 
       // Query the most recent entries
       final query = ref.limitToLast(days);
@@ -126,8 +181,14 @@ class FirebaseDbService {
 
   // Listen for real-time updates to sensor data
   Stream<Map<String, dynamic>> sensorDataStream() {
+    if (!_isInitialized || _database == null) {
+      _logMessage('Cannot create sensor data stream, service not initialized');
+      // Return empty stream
+      return Stream.value(<String, dynamic>{});
+    }
+    
     // Match the Firebase path shown in the image: plantData/current
-    final ref = _database.ref('plantData/current');
+    final ref = _database!.ref('plantData/current');
     return ref.onValue.map((event) {
       if (event.snapshot.exists) {
         final data = event.snapshot.value as Map<Object?, Object?>;
@@ -152,7 +213,14 @@ class FirebaseDbService {
   // Get irrigation settings
   Future<Map<String, dynamic>?> getIrrigationSettings() async {
     try {
-      final ref = _database.ref('plantData/irrigationSettings');
+      await _ensureInitialized();
+      
+      if (_database == null) {
+        _logMessage('Database instance is null, returning null irrigation settings');
+        return null;
+      }
+      
+      final ref = _database!.ref('plantData/irrigationSettings');
       final snapshot = await ref.get();
 
       if (snapshot.exists) {
@@ -181,7 +249,14 @@ class FirebaseDbService {
   // Save irrigation settings
   Future<void> saveIrrigationSettings(Map<String, dynamic> settings) async {
     try {
-      final ref = _database.ref('plantData/irrigationSettings');
+      await _ensureInitialized();
+      
+      if (_database == null) {
+        _logMessage('Database instance is null, cannot save irrigation settings');
+        throw Exception('Database not initialized');
+      }
+      
+      final ref = _database!.ref('plantData/irrigationSettings');
       await ref.set(settings);
       _logMessage('Saved irrigation settings: $settings');
     } catch (e) {
