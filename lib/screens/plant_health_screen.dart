@@ -5,11 +5,9 @@ import '../services/firebase_db_service.dart';
 
 class PlantHealthScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
-  
-  const PlantHealthScreen({
-    Key? key, 
-    this.isFirebaseInitialized = false
-  }) : super(key: key);
+
+  const PlantHealthScreen({Key? key, this.isFirebaseInitialized = false})
+      : super(key: key);
 
   @override
   State<PlantHealthScreen> createState() => _PlantHealthScreenState();

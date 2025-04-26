@@ -44,19 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase configuration files (sensitive data)
+# # Firebase configuration files (sensitive data)
 # lib/services/firebase_config.dart
 # lib/services/firebase_config_local.dart
-
-# Remove the ** pattern for specific file paths
-# Instead, specify exact paths for Firebase config files
-ios/Runner/GoogleService-Info.plist
-android/app/google-services.json
-
-# Cache files
-.firebase/
-firebase-debug.log
-**/ios/Pods/
-**/ios/Runner.xcworkspace/xcuserdata/
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/flutter_export_environment.sh
+**/GoogleService-Info.plist
+**/google-services.json

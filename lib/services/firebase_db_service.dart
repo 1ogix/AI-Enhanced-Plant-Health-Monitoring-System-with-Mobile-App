@@ -30,25 +30,26 @@ class FirebaseDbService {
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
 
   FirebaseDbService._internal();
-  
+
   // Initialize Firebase
   Future<void> initialize() async {
     if (_isInitialized) {
       _logMessage('FirebaseDbService already initialized');
       return;
     }
-    
+
     try {
       // Make sure Firebase is initialized before accessing FirebaseDatabase
       if (Firebase.apps.isEmpty) {
-        _logMessage('Firebase not initialized yet. Firebase.initializeApp() must be called first.');
+        _logMessage(
+            'Firebase not initialized yet. Firebase.initializeApp() must be called first.');
         throw Exception('Firebase not initialized');
       }
-      
+
       _database = FirebaseDatabase.instance;
       _isInitialized = true;
       _logMessage('Firebase database service initialized successfully');
-      
+
       // Monitor connection state
       try {
         final connectedRef = _database!.ref('.info/connected');
@@ -87,12 +88,12 @@ class FirebaseDbService {
   Future<Map<String, dynamic>?> getLatestSensorData() async {
     try {
       await _ensureInitialized();
-      
+
       if (_database == null) {
         _logMessage('Database instance is null, returning empty data');
         return null;
       }
-      
+
       // Match the ESP32 database path "plantData/current"
       final ref = _database!.ref('plantData/current');
       final snapshot = await ref.get();
@@ -124,12 +125,13 @@ class FirebaseDbService {
   Future<List<Map<String, dynamic>>> getHistoricalData(int days) async {
     try {
       await _ensureInitialized();
-      
+
       if (_database == null) {
-        _logMessage('Database instance is null, returning empty historical data');
+        _logMessage(
+            'Database instance is null, returning empty historical data');
         return [];
       }
-      
+
       // Match the ESP32 database path "plantData/history"
       final ref = _database!.ref('plantData/history');
 
@@ -186,7 +188,7 @@ class FirebaseDbService {
       // Return empty stream
       return Stream.value(<String, dynamic>{});
     }
-    
+
     // Match the Firebase path shown in the image: plantData/current
     final ref = _database!.ref('plantData/current');
     return ref.onValue.map((event) {
@@ -214,12 +216,13 @@ class FirebaseDbService {
   Future<Map<String, dynamic>?> getIrrigationSettings() async {
     try {
       await _ensureInitialized();
-      
+
       if (_database == null) {
-        _logMessage('Database instance is null, returning null irrigation settings');
+        _logMessage(
+            'Database instance is null, returning null irrigation settings');
         return null;
       }
-      
+
       final ref = _database!.ref('plantData/irrigationSettings');
       final snapshot = await ref.get();
 
@@ -250,12 +253,13 @@ class FirebaseDbService {
   Future<void> saveIrrigationSettings(Map<String, dynamic> settings) async {
     try {
       await _ensureInitialized();
-      
+
       if (_database == null) {
-        _logMessage('Database instance is null, cannot save irrigation settings');
+        _logMessage(
+            'Database instance is null, cannot save irrigation settings');
         throw Exception('Database not initialized');
       }
-      
+
       final ref = _database!.ref('plantData/irrigationSettings');
       await ref.set(settings);
       _logMessage('Saved irrigation settings: $settings');

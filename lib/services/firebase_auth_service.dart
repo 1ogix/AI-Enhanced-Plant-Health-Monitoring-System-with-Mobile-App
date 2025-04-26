@@ -15,13 +15,15 @@ class FirebaseAuthService {
     if (_auth == null) {
       try {
         if (Firebase.apps.isEmpty) {
-          print('Error getting FirebaseAuth instance: Firebase not initialized');
+          print(
+              'Error getting FirebaseAuth instance: Firebase not initialized');
           throw Exception('Firebase not initialized');
         }
         _auth = FirebaseAuth.instance;
       } catch (e) {
         print('Error getting FirebaseAuth instance: $e');
-        throw Exception('Firebase Auth not initialized. Make sure Firebase.initializeApp() is called first.');
+        throw Exception(
+            'Firebase Auth not initialized. Make sure Firebase.initializeApp() is called first.');
       }
     }
     return _auth!;
@@ -64,7 +66,8 @@ class FirebaseAuthService {
     try {
       // Check if Firebase is initialized
       if (Firebase.apps.isEmpty) {
-        print('Cannot initialize FirebaseAuthService - Firebase.initializeApp() was not called or failed');
+        print(
+            'Cannot initialize FirebaseAuthService - Firebase.initializeApp() was not called or failed');
         return;
       }
 
