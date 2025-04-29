@@ -6,8 +6,7 @@ import 'dart:async';
 class SettingsScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
 
-  const SettingsScreen({Key? key, this.isFirebaseInitialized = false})
-      : super(key: key);
+  const SettingsScreen({super.key, this.isFirebaseInitialized = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();

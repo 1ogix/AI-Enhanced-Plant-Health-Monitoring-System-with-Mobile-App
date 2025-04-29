@@ -70,7 +70,7 @@ class FirebaseDbService {
     } catch (e) {
       _logMessage('Error initializing Firebase: $e');
       _isInitialized = false;
-      throw e; // Rethrow to notify caller
+      rethrow; // Rethrow to notify caller
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 import '../models/plant_data.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/firebase_db_service.dart';
@@ -9,8 +8,7 @@ import 'package:intl/intl.dart';
 class HomeScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
 
-  const HomeScreen({Key? key, this.isFirebaseInitialized = false})
-      : super(key: key);
+  const HomeScreen({super.key, this.isFirebaseInitialized = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();

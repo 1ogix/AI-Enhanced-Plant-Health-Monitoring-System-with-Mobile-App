@@ -9,7 +9,6 @@ import 'screens/settings_screen.dart';
 import 'screens/logs_screen.dart';
 import 'screens/irrigation_control_screen.dart';
 import 'widgets/sidebar.dart';
-import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
 import 'services/firebase_db_service.dart';
 import 'services/firebase_auth_service.dart';
@@ -32,17 +31,10 @@ void main() async {
       log('Flutter initialized');
 
       // Initialize Firebase with graceful error handling
-      // Replace this section in your main.dart:
-
-// Initialize Firebase with graceful error handling
       try {
         log('Attempting to initialize Firebase...');
-
-        // Simple direct initialization - don't use options at all
-        // This will automatically use GoogleService-Info.plist on iOS
-        // and google-services.json on Android
         await Firebase.initializeApp();
-        log('Firebase Core initialized successfully');
+        log('Firebase initialized successfully');
 
         // Check if Firebase was actually initialized
         final apps = Firebase.apps;
@@ -81,7 +73,7 @@ void main() async {
       log('Error during app initialization: $e');
       log('Stack trace: $stack');
       // Still try to run the app with Firebase status
-      runApp(PlantMonitorApp(isFirebaseInitialized: false));
+      runApp(const PlantMonitorApp(isFirebaseInitialized: false));
     }
   }, (error, stack) {
     // This catches any errors not caught by the try/catch

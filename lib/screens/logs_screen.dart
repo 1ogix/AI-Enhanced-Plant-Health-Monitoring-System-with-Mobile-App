@@ -6,8 +6,7 @@ import '../services/firebase_db_service.dart';
 class LogsScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
 
-  const LogsScreen({Key? key, this.isFirebaseInitialized = false})
-      : super(key: key);
+  const LogsScreen({super.key, this.isFirebaseInitialized = false});
 
   @override
   State<LogsScreen> createState() => _LogsScreenState();
