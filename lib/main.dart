@@ -9,6 +9,7 @@ import 'screens/settings_screen.dart';
 import 'screens/logs_screen.dart';
 import 'screens/irrigation_control_screen.dart';
 import 'widgets/sidebar.dart';
+import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
 import 'services/firebase_db_service.dart';
 import 'services/firebase_auth_service.dart';
@@ -210,7 +211,6 @@ class _MainScreenState extends State<MainScreen>
       _screens = [
         HomeScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
         PlantHealthScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
-        const SizedBox(child: Center(child: Text('Developer Tools Screen'))),
         IrrigationControlScreen(
             isFirebaseInitialized: widget.isFirebaseInitialized),
         SettingsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
@@ -249,7 +249,7 @@ class _MainScreenState extends State<MainScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plant Health Monitor'),
+        title: const Text('Plant Watering System'),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: _toggleSidebar,

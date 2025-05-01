@@ -139,18 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plant Monitor'),
-        actions: [
-          // Logout button
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async {
-              await _authService.signOut();
-              // No need to navigate, AuthGate will handle it
-            },
-          ),
-        ],
+        title: const Text('Home Page'),
+        backgroundColor: Colors.green.withOpacity(0.8),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

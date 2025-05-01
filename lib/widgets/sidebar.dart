@@ -17,10 +17,9 @@ class Sidebar extends StatelessWidget {
         const SizedBox(height: 50), // Space at the top
         _buildNavItem(0, 'Home Page', Icons.home),
         _buildNavItem(1, 'Plant Health Analysis', Icons.eco),
-        _buildNavItem(2, 'Developer Tools', Icons.build),
-        _buildNavItem(3, 'Irrigation Control', Icons.water_drop),
-        _buildNavItem(4, 'Settings', Icons.settings),
-        _buildNavItem(5, 'Logs', Icons.list_alt),
+        _buildNavItem(2, 'Irrigation Control', Icons.water_drop),
+        _buildNavItem(3, 'Settings', Icons.settings),
+        _buildNavItem(4, 'Logs', Icons.list_alt),
         const Spacer(),
         Container(
           padding: const EdgeInsets.all(16),
