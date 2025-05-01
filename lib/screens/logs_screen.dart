@@ -84,6 +84,8 @@ class _LogsScreenState extends State<LogsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('System Logs'),
+        backgroundColor: Colors.green.withOpacity(0.8),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -218,30 +220,6 @@ class _LogsScreenState extends State<LogsScreen> {
                               '%',
                               Icons.water_drop,
                               Colors.blue,
-                            ),
-                            const Divider(),
-                            _buildDataRow(
-                              'Light Exposure',
-                              data['lightExposure']?.toString() ?? 'N/A',
-                              '%',
-                              Icons.wb_sunny,
-                              Colors.amber,
-                            ),
-                            const Divider(),
-                            _buildDataRow(
-                              'Soil pH',
-                              data['soilPh']?.toString() ?? 'N/A',
-                              '',
-                              Icons.science,
-                              Colors.purple,
-                            ),
-                            const Divider(),
-                            _buildDataRow(
-                              'Nutrient Level',
-                              data['nutrientLevel']?.toString() ?? 'N/A',
-                              '%',
-                              Icons.grass,
-                              Colors.green,
                             ),
                           ],
                         ),

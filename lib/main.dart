@@ -250,6 +250,8 @@ class _MainScreenState extends State<MainScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Plant Watering System'),
+        backgroundColor: Colors.lightGreen,
+        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: _toggleSidebar,

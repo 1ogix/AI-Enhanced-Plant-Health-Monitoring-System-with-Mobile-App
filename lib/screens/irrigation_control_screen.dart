@@ -106,7 +106,8 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Irrigation Control'),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.green.withOpacity(0.8),
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
