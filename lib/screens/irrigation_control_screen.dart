@@ -17,18 +17,10 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
   bool _isAutoMode = true; // Default to auto mode
 
   // Time settings for manual mode
+  int _hours = 0; // Added hours
   int _minutes = 0;
   int _seconds = 0;
-  List<String> _selectedDays = ['Monday', 'Tuesday']; // Default selected days
-  final Map<String, bool> _weekdays = {
-    'Monday': true,
-    'Tuesday': true,
-    'Wednesday': false,
-    'Thursday': false,
-    'Friday': false,
-    'Saturday': false,
-    'Sunday': false,
-  };
+  // Removed the selected days variables and map
 
   bool _isSaving = false;
   String _statusMessage = '';
@@ -45,17 +37,10 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
       if (settings != null) {
         setState(() {
           _isAutoMode = settings['isAutoMode'] ?? true;
+          _hours = settings['hours'] ?? 0;
           _minutes = settings['minutes'] ?? 0;
           _seconds = settings['seconds'] ?? 0;
-
-          // Load selected days
-          final List<dynamic> days = settings['selectedDays'] ?? ['Monday'];
-          _selectedDays = days.map((day) => day.toString()).toList();
-
-          // Update weekdays map
-          _weekdays.forEach((day, _) {
-            _weekdays[day] = _selectedDays.contains(day);
-          });
+          // Removed loading selected days
         });
       }
     } catch (e) {
@@ -72,17 +57,13 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
     });
 
     try {
-      // Update selected days from weekdays map
-      _selectedDays = _weekdays.entries
-          .where((entry) => entry.value)
-          .map((entry) => entry.key)
-          .toList();
-
+      // Removed updating selected days from weekdays map
       final settings = {
         'isAutoMode': _isAutoMode,
+        'hours': _hours,
         'minutes': _minutes,
         'seconds': _seconds,
-        'selectedDays': _selectedDays,
+        // Removed selectedDays
       };
 
       await _dbService.saveIrrigationSettings(settings);
@@ -200,6 +181,36 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
                             const Text('Every:',
                                 style: TextStyle(fontSize: 14)),
                             const Spacer(),
+                            // Hours input
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Text('Hours',
+                                    style: TextStyle(fontSize: 12)),
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: 80,
+                                  height: 48,
+                                  child: TextField(
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 12),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    controller: TextEditingController(
+                                        text: _hours.toString()),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _hours = int.tryParse(value) ?? 0;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 16),
                             // Minutes input
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -268,50 +279,7 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
 
                 const SizedBox(height: 16),
 
-                // Day selection
-                Card(
-                  elevation: 1,
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Select Days',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Weekday selection checkboxes
-                        ..._weekdays.entries.map((entry) {
-                          return CheckboxListTile(
-                            title: Text(entry.key),
-                            value: entry.value,
-                            onChanged: (bool? value) {
-                              setState(() {
-                                if (value != null) {
-                                  _weekdays[entry.key] = value;
-                                }
-                              });
-                            },
-                            controlAffinity: ListTileControlAffinity.leading,
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            activeColor: Colors.green,
-                            checkColor: Colors.white,
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
+                // "Select Days" Card section removed
               ],
 
               const SizedBox(height: 24),
