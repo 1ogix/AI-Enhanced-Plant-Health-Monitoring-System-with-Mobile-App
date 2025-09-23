@@ -12,6 +12,7 @@ project 'Runner', {
 
 # This helps with Firebase module conflicts
 install! 'cocoapods', :deterministic_uuids => false
+require 'fileutils'
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -31,8 +32,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  # Using frameworks without static linkage seems to help with Firebase module issues
-  use_frameworks!
+  # CocoaPods default linkage (no use_frameworks!) keeps Flutter engine integration stable
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -66,9 +66,9 @@ post_install do |installer|
         config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
       end
       
-      # Disable code signing for pods to avoid common build issues
-      config.build_settings.delete('CODE_SIGNING_ALLOWED')
-      config.build_settings.delete('CODE_SIGNING_REQUIRED')
+      # Disable pod framework code signing for simulator builds
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
       
       # NEW ADDITIONS - Critical for fixing module redefinition errors
       config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
@@ -80,6 +80,29 @@ post_install do |installer|
         config.build_settings['SWIFT_INCLUDE_PATHS'] = '$(inherited) "${PODS_ROOT}/Firebase/CoreOnly/Sources"'
         config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) "${PODS_ROOT}/Firebase/CoreOnly/Sources"'
       end
+
+      # Ensure FirebaseAuth can locate its private headers when building as modular headers
+      if target.name == 'FirebaseAuth'
+        existing_paths = config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'
+        extra_paths = ' "${PODS_ROOT}/Headers/Private" "${PODS_ROOT}/FirebaseAuth" "${PODS_ROOT}/FirebaseAuth/FirebaseAuth/Sources"'
+        config.build_settings['HEADER_SEARCH_PATHS'] = existing_paths + extra_paths
+      end
     end
+  end
+
+  # Strip problematic macOS extended attributes that break codesign
+  system('find Pods -type d -name "*.framework" -print0 | xargs -0 xattr -rc >/dev/null 2>&1')
+
+  sandbox_root = installer.respond_to?(:sandbox_root) ? installer.sandbox_root : installer.sandbox.root.to_path
+  firebase_auth_sources = File.join(sandbox_root, 'FirebaseAuth', 'FirebaseAuth')
+  legacy_sources = File.join(firebase_auth_sources, 'Sources 2')
+  canonical_sources = File.join(firebase_auth_sources, 'Sources')
+  if File.directory?(legacy_sources) && File.directory?(canonical_sources)
+    Dir.glob(File.join(legacy_sources, '*')).each do |legacy_entry|
+      destination = File.join(canonical_sources, File.basename(legacy_entry))
+      FileUtils.rm_rf(destination)
+      FileUtils.mv(legacy_entry, destination)
+    end
+    FileUtils.rm_rf(legacy_sources)
   end
 end

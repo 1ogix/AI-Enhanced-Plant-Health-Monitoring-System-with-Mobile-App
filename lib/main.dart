@@ -9,7 +9,6 @@ import 'screens/settings_screen.dart';
 import 'screens/logs_screen.dart';
 import 'screens/irrigation_control_screen.dart';
 import 'widgets/sidebar.dart';
-import 'services/firebase_config.dart';
 import 'services/esp32_service.dart';
 import 'services/firebase_db_service.dart';
 import 'services/firebase_auth_service.dart';
