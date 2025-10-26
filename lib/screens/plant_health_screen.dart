@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import '../models/plant_data.dart'; // Import the PlantData model
+import '../widgets/custom_charts.dart';
 
 class PlantHealthScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
@@ -48,15 +48,31 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
     _historyData = [
       // Soil moisture history (last 7 days)
       _plantData.soilMoistureHistory.isEmpty
-          ? [50, 48, 52, 56, 54, 58, 56] // Sample data with realistic values
-          : _plantData.soilMoistureHistory
-              .map((value) => value.toDouble())
-              .toList(),
+          ? [
+              50.0,
+              48.0,
+              52.0,
+              56.0,
+              54.0,
+              58.0,
+              56.0
+            ] // Sample data with realistic values
+          : _plantData.soilMoistureHistory,
 
-      // Temperature history (last 7 days)
+      // Water Temperature history (last 7 days)
       _plantData.temperatureHistory.isEmpty
           ? [25, 24, 26, 27, 26, 25, 26]
           : _plantData.temperatureHistory,
+
+      // DHT Air Temperature history
+      _plantData.dhtTemperatureHistory.isEmpty
+          ? [28, 29, 28, 29, 30, 29, 28]
+          : _plantData.dhtTemperatureHistory,
+
+      // Humidity history
+      _plantData.humidityHistory.isEmpty
+          ? [60, 62, 61, 63, 65, 64, 62]
+          : _plantData.humidityHistory,
     ];
 
     // Ensure each history list has exactly 7 items for display
@@ -65,21 +81,33 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       if (_historyData[i].isEmpty) {
         if (i == 0) {
           // Soil moisture
-          _historyData[i] = [50, 48, 52, 56, 54, 58, 56];
+          _historyData[i] = [50.0, 48.0, 52.0, 56.0, 54.0, 58.0, 56.0];
         } else if (i == 1) {
-          // Temperature
+          // Water Temperature
           _historyData[i] = [25, 24, 26, 27, 26, 25, 26];
+        } else if (i == 2) {
+          // DHT Temperature
+          _historyData[i] = [28, 29, 28, 29, 30, 29, 28];
+        } else if (i == 3) {
+          // Humidity
+          _historyData[i] = [60, 62, 61, 63, 65, 64, 62];
         }
       }
 
       // Add current values if list is shorter than 7 items
       while (_historyData[i].length < 7) {
         if (i == 1) {
-          // Temperature
+          // Water Temperature
           _historyData[i].insert(0, _plantData.temperature);
         } else if (i == 0) {
           // Soil moisture
-          _historyData[i].insert(0, _plantData.soilMoisture.toDouble());
+          _historyData[i].insert(0, _plantData.soilMoisture);
+        } else if (i == 2) {
+          // DHT Temperature
+          _historyData[i].insert(0, _plantData.dhtTemperature);
+        } else if (i == 3) {
+          // Humidity
+          _historyData[i].insert(0, _plantData.humidity);
         }
       }
 
@@ -100,16 +128,34 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
         'icon': Icons.water_drop,
         'color': Colors.blue,
         'recommendation': 'Optimal range: 40-60%',
-        'status': _getStatusForMoisture(_plantData.soilMoisture),
+        'status': _getStatusForMoisture(_plantData.soilMoisture.toInt()),
       },
       {
-        'name': 'Temperature',
+        'name': 'Water Temperature',
         'value': _plantData.temperature,
         'unit': '°C',
         'icon': Icons.thermostat,
         'color': Colors.orange,
         'recommendation': 'Optimal range: 20-28°C',
         'status': _getStatusForTemperature(_plantData.temperature),
+      },
+      {
+        'name': 'Air Temperature',
+        'value': _plantData.dhtTemperature,
+        'unit': '°C',
+        'icon': Icons.thermostat_auto,
+        'color': Colors.red,
+        'recommendation': 'Optimal range: 22-30°C',
+        'status': _getStatusForDhtTemperature(_plantData.dhtTemperature),
+      },
+      {
+        'name': 'Humidity',
+        'value': _plantData.humidity,
+        'unit': '%',
+        'icon': Icons.opacity,
+        'color': Colors.teal,
+        'recommendation': 'Optimal range: 50-70%',
+        'status': _getStatusForHumidity(_plantData.humidity),
       },
     ];
   }
@@ -138,6 +184,28 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
     }
   }
 
+  // Helper method to determine DHT temperature status
+  String _getStatusForDhtTemperature(double temp) {
+    if (temp >= 22 && temp <= 30) {
+      return 'Good';
+    } else if (temp < 18 || temp > 35) {
+      return 'Critical';
+    } else {
+      return 'Moderate';
+    }
+  }
+
+  // Helper method to determine humidity status
+  String _getStatusForHumidity(double humidity) {
+    if (humidity >= 50 && humidity <= 70) {
+      return 'Good';
+    } else if (humidity < 40) {
+      return 'Low';
+    } else {
+      return 'High';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,7 +215,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<double>(
-          // Listen to temperature changes
+          // Listen to water temperature changes
           stream: _plantData.temperatureStream,
           initialData: _plantData.temperature,
           builder: (context, tempSnapshot) {
@@ -158,41 +226,63 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                   _getStatusForTemperature(tempSnapshot.data!);
             }
 
-            return StreamBuilder<int>(
-                // Listen to moisture changes
-                stream: _plantData.soilMoistureStream,
-                initialData: _plantData.soilMoisture,
-                builder: (context, moistureSnapshot) {
-                  // Update soil moisture in health metrics when moisture changes
-                  if (moistureSnapshot.hasData) {
-                    _healthMetrics[0]['value'] = moistureSnapshot.data;
-                    _healthMetrics[0]['status'] =
-                        _getStatusForMoisture(moistureSnapshot.data!);
-                  }
+            return StreamBuilder<double>(
+              // Listen to moisture changes
+              stream: _plantData.soilMoistureStream,
+              initialData: _plantData.soilMoisture.toDouble(),
+              builder: (context, moistureSnapshot) {
+                if (moistureSnapshot.hasData) {
+                  _healthMetrics[0]['value'] = moistureSnapshot.data!;
+                  _healthMetrics[0]['status'] =
+                      _getStatusForMoisture(moistureSnapshot.data!.toInt());
+                }
 
-                  return SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Overall health status card
-                          _buildOverallHealthCard(),
+                return StreamBuilder<double>(
+                  // Listen to DHT temp changes
+                  stream: _plantData.dhtTemperatureStream,
+                  initialData: _plantData.dhtTemperature,
+                  builder: (context, dhtTempSnapshot) {
+                    if (dhtTempSnapshot.hasData) {
+                      _healthMetrics[2]['value'] = dhtTempSnapshot.data!;
+                      _healthMetrics[2]['status'] =
+                          _getStatusForDhtTemperature(dhtTempSnapshot.data!);
+                    }
 
-                          const SizedBox(height: 20),
+                    return StreamBuilder<double>(
+                      // Listen to humidity changes
+                      stream: _plantData.humidityStream,
+                      initialData: _plantData.humidity,
+                      builder: (context, humiditySnapshot) {
+                        if (humiditySnapshot.hasData) {
+                          _healthMetrics[3]['value'] = humiditySnapshot.data!;
+                          _healthMetrics[3]['status'] =
+                              _getStatusForHumidity(humiditySnapshot.data!);
+                        }
 
-                          // Health metrics grid
-                          _buildHealthMetricsGrid(),
-
-                          const SizedBox(height: 20),
-
-                          // Historical data section
-                          _buildHistoricalDataSection(),
-                        ],
-                      ),
-                    ),
-                  );
-                });
+                        return SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Overall health status card
+                                _buildOverallHealthCard(),
+                                const SizedBox(height: 20),
+                                // Health metrics grid
+                                _buildHealthMetricsGrid(),
+                                const SizedBox(height: 20),
+                                // Historical data section
+                                _buildHistoricalDataSection(),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
           }),
     );
   }
@@ -385,7 +475,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       shrinkWrap: true,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 1.1,
+        childAspectRatio: 1.0,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
@@ -393,13 +483,12 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       itemBuilder: (context, index) {
         final metric = _healthMetrics[index];
         // Format the display value based on type
-        String displayValue;
-        if (metric['name'] == 'Temperature') {
-          // Format temperature to show only 1 decimal place
-          double tempValue = (metric['value'] as double);
-          displayValue = '${tempValue.toStringAsFixed(1)}${metric['unit']}';
+        String displayValue = '${metric['value']}${metric['unit']}';
+        if (metric['value'] is double) {
+          // Format double values to show only 1 decimal place
+          double value = (metric['value'] as double);
+          displayValue = '${value.toStringAsFixed(1)}${metric['unit']}';
         } else {
-          // Keep original formatting for other metrics
           displayValue = '${metric['value']}${metric['unit']}';
         }
 
@@ -482,182 +571,234 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
     return StreamBuilder<double>(
       stream: _plantData.temperatureStream,
       initialData: _plantData.temperature,
-      builder: (context, tempSnapshot) {
-        return StreamBuilder<int>(
+      builder: (context, waterTempSnapshot) {
+        return StreamBuilder<double>(
           stream: _plantData.soilMoistureStream,
-          initialData: _plantData.soilMoisture,
+          initialData: _plantData.soilMoisture.toDouble(),
           builder: (context, moistureSnapshot) {
-            final selectedMetric = _healthMetrics[_selectedMetricIndex];
+            return StreamBuilder<double>(
+                stream: _plantData.dhtTemperatureStream,
+                initialData: _plantData.dhtTemperature,
+                builder: (context, dhtTempSnapshot) {
+                  return StreamBuilder<double>(
+                      stream: _plantData.humidityStream,
+                      initialData: _plantData.humidity,
+                      builder: (context, humiditySnapshot) {
+                        if (_plantData.dhtTemperatureHistory.isNotEmpty) {
+                          _historyData[2] = List<double>.from(
+                              _plantData.dhtTemperatureHistory);
+                        }
 
-            // Make sure we have the latest history data from Firebase
-            if (_plantData.temperatureHistory.isNotEmpty) {
-              _historyData[1] =
-                  List<double>.from(_plantData.temperatureHistory);
-            }
+                        if (_plantData.humidityHistory.isNotEmpty) {
+                          _historyData[3] =
+                              List<double>.from(_plantData.humidityHistory);
+                        }
+                        if (_plantData.temperatureHistory.isNotEmpty) {
+                          _historyData[1] =
+                              List<double>.from(_plantData.temperatureHistory);
+                        }
+                        if (_plantData.soilMoistureHistory.isNotEmpty) {
+                          _historyData[0] =
+                              List<double>.from(_plantData.soilMoistureHistory);
+                        }
 
-            if (_plantData.soilMoistureHistory.isNotEmpty) {
-              _historyData[0] = _plantData.soilMoistureHistory
-                  .map((value) => value.toDouble())
-                  .toList();
-            }
+                        final selectedMetric =
+                            _healthMetrics[_selectedMetricIndex];
 
-            // If history data is still empty after checking Firebase, use sample data
-            if (_historyData[0].isEmpty) {
-              _historyData[0] = [50, 48, 52, 56, 54, 58, 56];
-            }
+                        // If history data is still empty after checking Firebase, use sample data
+                        if (_historyData[0].isEmpty) {
+                          _historyData[0] = [
+                            50.0,
+                            48.0,
+                            52.0,
+                            56.0,
+                            54.0,
+                            58.0,
+                            56.0
+                          ];
+                        }
 
-            if (_historyData[1].isEmpty) {
-              _historyData[1] = [25, 24, 26, 27, 26, 25, 26];
-            }
+                        if (_historyData[1].isEmpty) {
+                          _historyData[1] = [25, 24, 26, 27, 26, 25, 26];
+                        }
 
-            // Ensure each data list has 7 entries
-            for (int i = 0; i < _historyData.length; i++) {
-              while (_historyData[i].length < 7) {
-                if (i == 0) {
-                  // Add current soil moisture at the end
-                  _historyData[i].add(moistureSnapshot.data!.toDouble());
-                } else if (i == 1) {
-                  // Add current temperature at the end
-                  _historyData[i].add(tempSnapshot.data!);
-                }
-              }
+                        if (_historyData[2].isEmpty) {
+                          _historyData[2] = [28, 29, 28, 29, 30, 29, 28];
+                        }
 
-              // Trim to 7 items if needed
-              if (_historyData[i].length > 7) {
-                _historyData[i] =
-                    _historyData[i].sublist(_historyData[i].length - 7);
-              }
-            }
+                        if (_historyData[3].isEmpty) {
+                          _historyData[3] = [60, 62, 61, 63, 65, 64, 62];
+                        }
 
-            final historyData = _historyData[_selectedMetricIndex];
-
-            // Rest of the method remains unchanged
-            return Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ...existing code...
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${selectedMetric['name']} History',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Last 7 Days',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Simple chart
-                    SizedBox(
-                      height: 200,
-                      child: _buildSimpleLineChart(historyData, selectedMetric),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Recommendations
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: selectedMetric['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.lightbulb_outline,
-                              color: selectedMetric['color']),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              selectedMetric['recommendation'],
-                              style: const TextStyle(
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Add refresh button to manually fetch history data
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh History Data'),
-                        onPressed: () async {
-                          if (_plantData.isConnectedToFirebase) {
-                            await _plantData.refreshData();
+                        // Ensure each data list has 7 entries
+                        for (int i = 0; i < _historyData.length; i++) {
+                          while (_historyData[i].length < 7) {
+                            // This logic seems to be adding to the start, but let's add to the end for consistency
+                            // The sublist logic below will handle trimming.
+                            if (i == 0) {
+                              // Add current soil moisture at the end
+                              _historyData[i].add(moistureSnapshot.data!);
+                            } else if (i == 1) {
+                              // Add current water temperature at the end
+                              _historyData[i].add(waterTempSnapshot.data!);
+                            } else if (i == 2) {
+                              // Add current DHT temperature at the end
+                              _historyData[i].add(dhtTempSnapshot.data!);
+                            } else if (i == 3) {
+                              // Add current humidity at the end
+                              _historyData[i].add(humiditySnapshot.data!);
+                            }
                           }
-                          // Reset history data
-                          setState(() {
-                            _initializeHistoryData();
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Historical data refreshed'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
 
-                    const SizedBox(height: 16),
+                          // Trim to 7 items if needed
+                          if (_historyData[i].length > 7) {
+                            _historyData[i] = _historyData[i]
+                                .sublist(_historyData[i].length - 7);
+                          }
+                        }
 
-                    // Analysis button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.analytics),
-                        label: const Text('Detailed Analysis'),
-                        onPressed: () {
-                          // Detailed analysis would go here
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Detailed analysis coming soon!'),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: selectedMetric['color'],
-                          foregroundColor: Colors.white,
+                        final historyData = _historyData[_selectedMetricIndex];
+
+                        // Rest of the method remains unchanged
+                        return Card(
+                          elevation: 3,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // ...existing code...
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${selectedMetric['name']} History (7 Days)',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text(
+                                        'Live',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Simple chart
+                                SizedBox(
+                                  height: 200,
+                                  child: _buildSimpleLineChart(
+                                      historyData, selectedMetric),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Recommendations
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: selectedMetric['color']
+                                        .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.lightbulb_outline,
+                                          color: selectedMetric['color']),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          selectedMetric['recommendation'],
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // Add refresh button to manually fetch history data
+                                Center(
+                                  child: TextButton.icon(
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Refresh History Data'),
+                                    onPressed: () async {
+                                      if (_plantData.isConnectedToFirebase) {
+                                        await _plantData.refreshData();
+                                      }
+                                      // Reset history data
+                                      setState(() {
+                                        _initializeHistoryData();
+                                      });
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Historical data refreshed'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // Analysis button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.analytics),
+                                    label: const Text('Detailed Analysis'),
+                                    onPressed: () {
+                                      // Detailed analysis would go here
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Detailed analysis coming soon!'),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                      backgroundColor: selectedMetric['color'],
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      });
+                });
           },
         );
       },
@@ -665,177 +806,11 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
   }
 
   Widget _buildSimpleLineChart(List<double> data, Map<String, dynamic> metric) {
-    // Find min and max values for scaling
-    final minValue = data.reduce(math.min);
-    final maxValue = data.reduce(math.max);
-    final range = maxValue - minValue;
-
-    return CustomPaint(
-      size: const Size(double.infinity, 200),
-      painter: _ChartPainter(
-        data: data,
-        minValue: range > 0 ? minValue - (range * 0.1) : minValue * 0.9,
-        maxValue: range > 0 ? maxValue + (range * 0.1) : maxValue * 1.1,
-        lineColor: metric['color'],
-        labels: _lastSevenDays,
-        unit: metric['unit'],
-      ),
+    return CustomLineChart(
+      data: data,
+      labels: _lastSevenDays,
+      unit: metric['unit'],
+      lineColor: metric['color'],
     );
-  }
-}
-
-class _ChartPainter extends CustomPainter {
-  final List<double> data;
-  final double minValue;
-  final double maxValue;
-  final Color lineColor;
-  final List<String> labels;
-  final String unit;
-
-  _ChartPainter({
-    required this.data,
-    required this.minValue,
-    required this.maxValue,
-    required this.lineColor,
-    required this.labels,
-    required this.unit,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = lineColor
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final dotPaint = Paint()
-      ..color = lineColor
-      ..style = PaintingStyle.fill;
-
-    final linePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.3)
-      ..strokeWidth = 1;
-
-    final path = Path();
-    final valueRange = maxValue - minValue;
-
-    // Draw horizontal lines and labels
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-
-    // Draw horizontal grid lines
-    for (int i = 0; i <= 3; i++) {
-      final y = size.height - (size.height * (i / 3));
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        linePaint,
-      );
-
-      // Draw value labels
-      final value = minValue + (valueRange * (i / 3));
-      final text =
-          value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1);
-      textPainter.text = TextSpan(
-        text: '$text$unit',
-        style: TextStyle(
-          color: Colors.grey.shade600,
-          fontSize: 10,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-          canvas, Offset(-textPainter.width - 5, y - textPainter.height / 2));
-    }
-
-    // Draw data points and lines
-    for (int i = 0; i < data.length; i++) {
-      final x = i * (size.width / (data.length - 1));
-      final normalizedValue = (data[i] - minValue) / valueRange;
-      final y = size.height - (normalizedValue * size.height);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-
-      // Draw data point
-      canvas.drawCircle(Offset(x, y), 4, dotPaint);
-
-      // Draw vertical grid lines
-      canvas.drawLine(
-        Offset(x, size.height),
-        Offset(x, 0),
-        linePaint,
-      );
-
-      // Draw x-axis labels on alternate points to avoid crowding
-      if (data.length <= 7 || i % 2 == 0 || i == data.length - 1) {
-        textPainter.text = TextSpan(
-          text: labels[i],
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 9,
-          ),
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            x - textPainter.width / 2,
-            size.height + 5,
-          ),
-        );
-      }
-
-      // Draw value above dot
-      textPainter.text = TextSpan(
-        text: data[i]
-            .toStringAsFixed(data[i].truncateToDouble() == data[i] ? 0 : 1),
-        style: TextStyle(
-          color: lineColor,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          x - textPainter.width / 2,
-          y - 18,
-        ),
-      );
-    }
-
-    // Draw the line connecting all points
-    canvas.drawPath(path, paint);
-
-    // Create a gradient fill under the line
-    final fillPath = Path.from(path);
-    fillPath.lineTo(size.width, size.height);
-    fillPath.lineTo(0, size.height);
-    fillPath.close();
-
-    final fillPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          lineColor.withOpacity(0.3),
-          lineColor.withOpacity(0.05),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    canvas.drawPath(fillPath, fillPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
   }
 }

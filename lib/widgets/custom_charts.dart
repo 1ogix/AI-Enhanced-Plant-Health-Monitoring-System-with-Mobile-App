@@ -26,15 +26,19 @@ class CustomLineChart extends StatelessWidget {
 
     return SizedBox(
       height: height,
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: ChartPainter(
-          data: data,
-          minValue: range > 0 ? minValue - (range * 0.1) : minValue * 0.9,
-          maxValue: range > 0 ? maxValue + (range * 0.1) : maxValue * 1.1,
-          lineColor: lineColor,
-          labels: labels,
-          unit: unit,
+      child: Padding(
+        padding:
+            const EdgeInsets.only(left: 35, bottom: 20, right: 10, top: 20),
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: ChartPainter(
+            data: data,
+            minValue: range > 0 ? minValue - (range * 0.1) : minValue * 0.9,
+            maxValue: range > 0 ? maxValue + (range * 0.1) : maxValue * 1.1,
+            lineColor: lineColor,
+            labels: labels,
+            unit: unit,
+          ),
         ),
       ),
     );
@@ -78,7 +82,7 @@ class ChartPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     final path = Path();
-    final valueRange = maxValue - minValue;
+    var valueRange = maxValue - minValue;
 
     // Draw horizontal lines and labels
     final textPainter = TextPainter(
@@ -94,7 +98,11 @@ class ChartPainter extends CustomPainter {
         linePaint,
       );
 
-      // Draw value labels
+      // Draw value labels. Handle case where valueRange is 0.
+      if (valueRange == 0 && i == 0) {
+        // If range is 0, only draw one label for the single value
+        valueRange = 1; // prevent further division by zero
+      }
       final value = minValue + (valueRange * (i / 3));
       final text =
           value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1);
@@ -113,7 +121,11 @@ class ChartPainter extends CustomPainter {
     // Draw data points and lines
     for (int i = 0; i < data.length; i++) {
       final x = i * (size.width / (data.length - 1));
-      final normalizedValue = (data[i] - minValue) / valueRange;
+
+      // Prevent division by zero if all values are the same
+      final normalizedValue =
+          valueRange > 0 ? (data[i] - minValue) / valueRange : 0.5;
+
       final y = size.height - (normalizedValue * size.height);
 
       if (i == 0) {

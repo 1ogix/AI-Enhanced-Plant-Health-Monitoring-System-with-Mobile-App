@@ -285,34 +285,33 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
               const SizedBox(height: 24),
 
               // Save button
-              if (!_isAutoMode)
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveIrrigationSettings,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      minimumSize: const Size(200, 45),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveIrrigationSettings,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Save',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                    minimumSize: const Size(200, 45),
                   ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Save Settings',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
+              ),
 
               // Status message
               if (_statusMessage.isNotEmpty)

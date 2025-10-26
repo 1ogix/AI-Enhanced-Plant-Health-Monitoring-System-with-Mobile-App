@@ -14,29 +14,39 @@ class PlantData {
 
   // Current sensor values
   double temperature = 0.0;
-  int soilMoisture = 0;
-  int lightExposure = 0;
-  double soilPh = 0.0;
-  int nutrientLevel = 0;
+  double soilMoisture = 0.0;
   String plantHealth = 'UNKNOWN';
   bool isConnectedToFirebase = false;
 
+  // New sensor values from ESP32
+  double dhtTemperature = 0.0;
+  double humidity = 0.0;
+  double ntcTemperature = 0.0;
+  bool fanStatus = false;
+  bool ledStatus = false;
+  bool pumpStatus = false;
+  bool ntcRelayStatus = false;
+
   // Historical data (last 7 days)
   final List<double> temperatureHistory = [];
-  final List<int> soilMoistureHistory = [];
-  final List<int> lightExposureHistory = [];
-  final List<double> soilPhHistory = [];
-  final List<int> nutrientLevelHistory = [];
+  final List<double> soilMoistureHistory = [];
+  final List<double> dhtTemperatureHistory = [];
+  final List<double> humidityHistory = [];
+  final List<double> ntcTemperatureHistory = [];
 
   // Stream controllers for real-time updates
   final _temperatureController = StreamController<double>.broadcast();
-  final _soilMoistureController = StreamController<int>.broadcast();
+  final _soilMoistureController = StreamController<double>.broadcast();
+  final _dhtTemperatureController = StreamController<double>.broadcast();
+  final _humidityController = StreamController<double>.broadcast();
   final _plantHealthController = StreamController<String>.broadcast();
   final _connectionStatusController = StreamController<bool>.broadcast();
 
   // Getters for streams
   Stream<double> get temperatureStream => _temperatureController.stream;
-  Stream<int> get soilMoistureStream => _soilMoistureController.stream;
+  Stream<double> get soilMoistureStream => _soilMoistureController.stream;
+  Stream<double> get dhtTemperatureStream => _dhtTemperatureController.stream;
+  Stream<double> get humidityStream => _humidityController.stream;
   Stream<String> get plantHealthStream => _plantHealthController.stream;
   Stream<bool> get connectionStatusStream => _connectionStatusController.stream;
   Stream<String> get logMessages => _firebaseDbService.logMessages;
@@ -52,16 +62,16 @@ class PlantData {
   PlantData._internal() {
     // Initialize with default values
     temperature = 0.0;
-    soilMoisture = 0;
+    soilMoisture = 0.0;
     plantHealth = 'UNKNOWN';
 
     // Initialize history data
     for (int i = 0; i < 7; i++) {
       temperatureHistory.add(0.0);
-      soilMoistureHistory.add(0);
-      lightExposureHistory.add(0);
-      soilPhHistory.add(0.0);
-      nutrientLevelHistory.add(0);
+      soilMoistureHistory.add(0.0);
+      dhtTemperatureHistory.add(0.0);
+      humidityHistory.add(0.0);
+      ntcTemperatureHistory.add(0.0);
     }
 
     // Listen to Firebase connection status
@@ -107,9 +117,9 @@ class PlantData {
       // Clear existing history
       temperatureHistory.clear();
       soilMoistureHistory.clear();
-      lightExposureHistory.clear();
-      soilPhHistory.clear();
-      nutrientLevelHistory.clear();
+      dhtTemperatureHistory.clear();
+      humidityHistory.clear();
+      ntcTemperatureHistory.clear();
 
       // Sort by timestamp if available
       historicalData.sort((a, b) {
@@ -128,19 +138,19 @@ class PlantData {
         }
 
         if (entry.containsKey('soilMoisture')) {
-          soilMoistureHistory.add(_getIntValue(entry['soilMoisture']));
+          soilMoistureHistory.add(_getDoubleValue(entry['soilMoisture']));
         }
 
-        if (entry.containsKey('lightExposure')) {
-          lightExposureHistory.add(_getIntValue(entry['lightExposure']));
+        if (entry.containsKey('dhtTemperature')) {
+          dhtTemperatureHistory.add(_getDoubleValue(entry['dhtTemperature']));
         }
 
-        if (entry.containsKey('soilPh')) {
-          soilPhHistory.add(_getDoubleValue(entry['soilPh']));
+        if (entry.containsKey('humidity')) {
+          humidityHistory.add(_getDoubleValue(entry['humidity']));
         }
 
-        if (entry.containsKey('nutrientLevel')) {
-          nutrientLevelHistory.add(_getIntValue(entry['nutrientLevel']));
+        if (entry.containsKey('ntcTemperature')) {
+          ntcTemperatureHistory.add(_getDoubleValue(entry['ntcTemperature']));
         }
       }
     }
@@ -178,7 +188,7 @@ class PlantData {
 
     // Update soil moisture
     if (data.containsKey('soilMoisture')) {
-      final newMoisture = _getIntValue(data['soilMoisture']);
+      final newMoisture = _getDoubleValue(data['soilMoisture']);
       updateSoilMoisture(newMoisture);
     }
 
@@ -192,22 +202,38 @@ class PlantData {
       _updatePlantHealth();
     }
 
-    // Update light exposure
-    if (data.containsKey('lightExposure')) {
-      final newLight = _getIntValue(data['lightExposure']);
-      updateLightExposure(newLight);
+    // Update DHT temperature
+    if (data.containsKey('dhtTemperature')) {
+      dhtTemperature = _getDoubleValue(data['dhtTemperature']);
+      _dhtTemperatureController.add(dhtTemperature);
     }
 
-    // Update soil pH
-    if (data.containsKey('soilPh')) {
-      final newPh = _getDoubleValue(data['soilPh']);
-      updateSoilPh(newPh);
+    // Update humidity
+    if (data.containsKey('humidity')) {
+      humidity = _getDoubleValue(data['humidity']);
+      _humidityController.add(humidity);
     }
 
-    // Update nutrient level
-    if (data.containsKey('nutrientLevel')) {
-      final newNutrient = _getIntValue(data['nutrientLevel']);
-      updateNutrientLevel(newNutrient);
+    // Update NTC temperature
+    if (data.containsKey('ntcTemperature')) {
+      ntcTemperature = _getDoubleValue(data['ntcTemperature']);
+    }
+
+    // Update statuses
+    if (data.containsKey('fanStatus')) {
+      fanStatus = data['fanStatus'] as bool? ?? false;
+    }
+
+    if (data.containsKey('ledStatus')) {
+      ledStatus = data['ledStatus'] as bool? ?? false;
+    }
+
+    if (data.containsKey('pumpStatus')) {
+      pumpStatus = data['pumpStatus'] as bool? ?? false;
+    }
+
+    if (data.containsKey('ntcRelayStatus')) {
+      ntcRelayStatus = data['ntcRelayStatus'] as bool? ?? false;
     }
   }
 
@@ -228,7 +254,7 @@ class PlantData {
     temperatureHistory.add(value);
   }
 
-  void updateSoilMoisture(int value) {
+  void updateSoilMoisture(double value) {
     soilMoisture = value;
     _soilMoistureController.add(value);
 
@@ -242,36 +268,6 @@ class PlantData {
       soilMoistureHistory.removeAt(0);
     }
     soilMoistureHistory.add(value);
-  }
-
-  void updateLightExposure(int value) {
-    lightExposure = value;
-
-    // Add to history
-    if (lightExposureHistory.length >= 7) {
-      lightExposureHistory.removeAt(0);
-    }
-    lightExposureHistory.add(value);
-  }
-
-  void updateSoilPh(double value) {
-    soilPh = value;
-
-    // Add to history
-    if (soilPhHistory.length >= 7) {
-      soilPhHistory.removeAt(0);
-    }
-    soilPhHistory.add(value);
-  }
-
-  void updateNutrientLevel(int value) {
-    nutrientLevel = value;
-
-    // Add to history
-    if (nutrientLevelHistory.length >= 7) {
-      nutrientLevelHistory.removeAt(0);
-    }
-    nutrientLevelHistory.add(value);
   }
 
   // Private method to determine plant health based on sensor values
@@ -299,15 +295,17 @@ class PlantData {
 
     // Start with some realistic values
     temperature = 25.0;
-    soilMoisture = 55;
-    lightExposure = 65;
-    soilPh = 6.5;
-    nutrientLevel = 70;
+    soilMoisture = 55.0;
+    dhtTemperature = 28.0;
+    humidity = 60.0;
+    ntcTemperature = 24.0;
     _updatePlantHealth();
 
     // Send initial values to streams
     _temperatureController.add(temperature);
     _soilMoistureController.add(soilMoisture);
+    _dhtTemperatureController.add(dhtTemperature);
+    _humidityController.add(humidity);
     _plantHealthController.add(plantHealth);
 
     // Update values every 3 seconds with slight variations
@@ -318,10 +316,19 @@ class PlantData {
 
       // Simulate soil moisture changes (decreasing slowly)
       soilMoisture -= 1;
-      if (soilMoisture < 30) {
+      if (soilMoisture < 30.0) {
         // Simulate automatic watering when moisture gets too low
         soilMoisture = 75;
       }
+
+      // Simulate DHT temp and humidity
+      dhtTemperature += (DateTime.now().second % 2 == 0 ? 0.1 : -0.1);
+      dhtTemperature = dhtTemperature.clamp(22.0, 35.0);
+      _dhtTemperatureController.add(dhtTemperature);
+
+      humidity += (DateTime.now().second % 2 == 0 ? 0.5 : -0.5);
+      humidity = humidity.clamp(40.0, 75.0);
+      _humidityController.add(humidity);
 
       // Update values
       updateTemperature(temperature);
@@ -354,6 +361,8 @@ class PlantData {
     _closeFirebaseDataStream();
     _temperatureController.close();
     _soilMoistureController.close();
+    _dhtTemperatureController.close();
+    _humidityController.close();
     _plantHealthController.close();
     _connectionStatusController.close();
     _firebaseDbService.dispose();
