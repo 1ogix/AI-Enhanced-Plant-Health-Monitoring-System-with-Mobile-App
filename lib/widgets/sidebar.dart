@@ -20,6 +20,7 @@ class Sidebar extends StatelessWidget {
         _buildNavItem(2, 'Irrigation Control', Icons.water_drop),
         _buildNavItem(3, 'Settings', Icons.settings),
         _buildNavItem(4, 'Logs', Icons.list_alt),
+        _buildNavItem(5, 'Ai Analysis', Icons.science),
         const Spacer(),
         Container(
           padding: const EdgeInsets.all(16),

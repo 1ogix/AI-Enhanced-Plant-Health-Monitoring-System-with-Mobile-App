@@ -8,6 +8,7 @@ import 'screens/plant_health_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/logs_screen.dart';
 import 'screens/irrigation_control_screen.dart';
+import 'screens/plant_analysis_screen.dart';
 import 'widgets/sidebar.dart';
 import 'services/esp32_service.dart';
 import 'services/firebase_db_service.dart';
@@ -214,6 +215,7 @@ class _MainScreenState extends State<MainScreen>
             isFirebaseInitialized: widget.isFirebaseInitialized),
         SettingsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
         LogsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+        PlantAnalysisScreen(isFirebaseInitialized: widget.isFirebaseInitialized)
       ];
     });
   }

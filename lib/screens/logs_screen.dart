@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-// import '../models/plant_data.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../services/firebase_db_service.dart';
 
 class LogsScreen extends StatefulWidget {
@@ -14,19 +15,12 @@ class LogsScreen extends StatefulWidget {
 
 class _LogsScreenState extends State<LogsScreen> {
   final FirebaseDbService _dbService = FirebaseDbService();
-  // final PlantData _plantData = PlantData();
 
   List<Map<String, dynamic>> _historyData = [];
   bool _isLoading = true;
   String _errorMessage = '';
 
-  // Format for timestamps
   final DateFormat _dateFormat = DateFormat('MMM d, yyyy - hh:mm:ss a');
-
-  // Alternative format options we can choose from:
-  // For date+time: DateFormat('MMM d, yyyy - HH:mm:ss');
-  // For date+time with day name: DateFormat('EEE, MMM d - HH:mm');
-  // For 12-hour format: DateFormat('hh:mm:ss a');
 
   @override
   void initState() {
@@ -34,7 +28,6 @@ class _LogsScreenState extends State<LogsScreen> {
     _fetchHistoricalData();
   }
 
-  // Fetch historical data from Firebase
   Future<void> _fetchHistoricalData() async {
     setState(() {
       _isLoading = true;
@@ -42,20 +35,10 @@ class _LogsScreenState extends State<LogsScreen> {
     });
 
     try {
-      // Get more historical entries (20 instead of just 7)
       final data = await _dbService.getHistoricalData(20);
-
-      if (data.isEmpty) {
-        _errorMessage = 'No historical data found';
-      }
-
-      // Sort data by timestamp in descending order (most recent first)
-      data.sort((a, b) {
-        final timestampA = a['timestamp'] as int? ?? 0;
-        final timestampB = b['timestamp'] as int? ?? 0;
-        return timestampB.compareTo(timestampA); // Descending order
-      });
-
+      if (data.isEmpty) _errorMessage = 'No historical data found';
+      data.sort((a, b) => ((b['timestamp'] ?? 0) as int)
+          .compareTo((a['timestamp'] ?? 0) as int));
       setState(() {
         _historyData = data;
         _isLoading = false;
@@ -68,39 +51,99 @@ class _LogsScreenState extends State<LogsScreen> {
     }
   }
 
-  // Convert Unix timestamp to readable date
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp is int) {
-      // Convert from seconds to milliseconds by multiplying by 1000
-      // This is necessary because ESP32 stores timestamps in seconds, not milliseconds
       final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
       return _dateFormat.format(dateTime);
     }
     return 'Invalid timestamp';
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // 🧩 NEW: Fetch AI Analysis History
+  List<Map<String, dynamic>> _analysisLogs = [];
+  bool _loadingAnalysis = false;
+
+  Future<void> _fetchAnalysisHistory() async {
+    setState(() => _loadingAnalysis = true);
+    try {
+      final db = FirebaseDatabase.instance.ref('plantData/analysis');
+      final snap = await db.get();
+
+      if (snap.exists && snap.value is Map) {
+        final data = snap.value as Map;
+        _analysisLogs = data.entries.map<Map<String, dynamic>>((entry) {
+          final v = entry.value as Map;
+          return {
+            'key': entry.key,
+            'status': v['status'] ?? 'Unknown',
+            'updated': v['updated'],
+            'image': v['image'],
+          };
+        }).toList()
+          ..sort((a, b) =>
+              (b['updated'] ?? 0).compareTo(a['updated'] ?? 0)); // newest first
+      } else {
+        _analysisLogs = [];
+      }
+    } catch (e) {
+      _analysisLogs = [];
+    }
+    setState(() => _loadingAnalysis = false);
+  }
+  // ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('System Logs'),
-        backgroundColor: Colors.green.withOpacity(0.8),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchHistoricalData,
-            tooltip: 'Refresh logs',
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('System Logs'),
+          backgroundColor: Colors.lightGreen,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48.0),
+            child: Container(
+              color: Colors.green[100],
+              child: const TabBar(
+                indicatorColor: Colors.green,
+                labelColor: Colors.black,
+                unselectedLabelColor: Colors.black54,
+                tabs: [
+                  Tab(text: 'Data Logs'),
+                  Tab(text: 'AI Analysis History'),
+                ],
+              ),
+            ),
           ),
-        ],
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                _fetchHistoricalData();
+                _fetchAnalysisHistory();
+              },
+            ),
+          ],
+        ),
+        body: TabBarView(
+          children: [
+            // ───── Tab 1: your existing Logs UI ─────
+            _buildDataLogs(),
+            // ───── Tab 2: new AI Analysis History ─────
+            _buildAnalysisHistory(),
+          ],
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildLogContent(),
     );
   }
 
-  Widget _buildLogContent() {
+  // ⬇ ORIGINAL CODE wrapped into a method (unchanged)
+  Widget _buildDataLogs() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (_errorMessage.isNotEmpty) {
       return Center(
         child: Column(
@@ -158,12 +201,8 @@ class _LogsScreenState extends State<LogsScreen> {
               itemBuilder: (context, index) {
                 final data = _historyData[index];
                 final timestamp = data['timestamp'];
-
-                // Get plant health status
                 String plantHealth =
                     data['plantHealth'] as String? ?? 'Unknown';
-
-                // Determine card color based on plant health
                 Color cardColor;
                 switch (plantHealth) {
                   case 'HEALTHY':
@@ -235,21 +274,70 @@ class _LogsScreenState extends State<LogsScreen> {
     );
   }
 
+  // ⬇ NEW TAB content: AI Analysis History
+  Widget _buildAnalysisHistory() {
+    if (_loadingAnalysis) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_analysisLogs.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 48),
+            SizedBox(height: 12),
+            Text('No AI analysis history found'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _analysisLogs.length,
+      itemBuilder: (context, i) {
+        final item = _analysisLogs[i];
+        final status = item['status'] ?? 'Unknown';
+        final updated = item['updated'] ?? 0;
+        final imageB64 = item['image'];
+
+        final isHealthy = status.toLowerCase().contains('healthy') &&
+            !status.toLowerCase().contains('unhealthy');
+
+        return Card(
+          margin: const EdgeInsets.all(8),
+          color: isHealthy ? Colors.green[50] : Colors.yellow[50],
+          child: ListTile(
+            leading: imageB64 != null && imageB64.toString().isNotEmpty
+                ? Image.memory(
+                    base64Decode(imageB64),
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  )
+                : const Icon(Icons.image_not_supported, size: 40),
+            title: Text(status),
+            subtitle: Text(
+              updated == 0
+                  ? 'No timestamp'
+                  : 'Updated: ${DateTime.fromMillisecondsSinceEpoch(updated)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildDataRow(
       String label, String value, String unit, IconData icon, Color color) {
     return Row(
       children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(width: 8),
-        Text(
-          '$label:',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold)),
         const Spacer(),
-        Text(
-          '$value $unit',
-          style: TextStyle(color: Colors.grey[800]),
-        ),
+        Text('$value $unit', style: TextStyle(color: Colors.grey[800])),
       ],
     );
   }
