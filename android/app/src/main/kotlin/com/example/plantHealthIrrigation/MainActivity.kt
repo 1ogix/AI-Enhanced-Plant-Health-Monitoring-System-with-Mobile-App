@@ -1,4 +1,4 @@
-package com.example.plant_health_irrigation
+package com.example.plantHealthIrrigation
 
 import io.flutter.embedding.android.FlutterActivity
 

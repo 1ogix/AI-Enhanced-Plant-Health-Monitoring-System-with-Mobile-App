@@ -12,6 +12,18 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.13113456"
 
+    android.applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+        def appName = "plant_health_monitor"
+        def buildType = variant.buildType.name
+        def versionName = variant.versionName
+        def versionCode = variant.versionCode
+        def newName = "${appName}-${buildType}-v${versionName}(${versionCode}).apk"
+
+        output.outputFileName = newName
+    }
+}
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
