@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/alananthonyrubi/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/alananthonyrubi/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/alananthonyrubi/Documents/DEVELOPMENT/Projects/Mobile App/EMBEDDES\u0026THESIS/plant_health_irrigation/android/app/.cxx/RelWithDebInfo/o452u25q/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/alananthonyrubi/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/alananthonyrubi/Documents/DEVELOPMENT/Projects/Mobile App/EMBEDDES\u0026THESIS/plant_health_irrigation/android/app/.cxx/RelWithDebInfo/o452u25q/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

@@ -1,12 +1,12 @@
 // Add buildscript block with updated Kotlin version
 buildscript {
-    ext.kotlin_version = '1.8.0' // Updated to match Firebase's expected version
+    ext.kotlin_version = '2.1.0' // Align with Google Play Services Kotlin metadata
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath 'com.android.tools.build:gradle:8.5.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
