@@ -91,6 +91,42 @@ If the image does not contain a plant, respond "No plant detected".
     }
   }
 
+  // Answer plant care questions using live sensor context
+  Future<String> answerPlantQuestion({
+    required String question,
+    required Map<String, dynamic> sensorData,
+  }) async {
+    final prompt = '''
+You are a plant care assistant for a smart irrigation system.
+Use the live sensor data below to answer the user's question.
+If data is missing or unclear, say so briefly.
+Keep the response to 1-3 short sentences.
+Do not invent actions or readings not shown in the data.
+
+Live sensor data (JSON):
+${jsonEncode(sensorData)}
+
+User question: "$question"
+''';
+
+    try {
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: 'gemini-2.5-flash',
+      );
+
+      final response = await model.generateContent([
+        Content.text(prompt),
+      ]);
+
+      final result = response.text?.trim() ?? 'I could not generate a reply.';
+      log('AI chat response: $result');
+      return result;
+    } catch (e) {
+      log('Error running Gemini chat: $e');
+      return 'Chat error: $e';
+    }
+  }
+
   // High-level helper: fetch → analyze → save
   Future<String> processLatestUpload(String nodePath, String timestamp) async {
     final imageBytes = await fetchAndDecodeImage(nodePath);

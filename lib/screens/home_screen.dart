@@ -5,9 +5,6 @@ import '../services/firebase_db_service.dart';
 import '../services/esp32_service.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
@@ -26,7 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ESP32Service _esp32Service = ESP32Service();
   bool _isLoading = true;
   String _connectionStatus = 'Checking connection...';
-  Map<String, dynamic>? _latestData;
   bool _hasConnectionError = false;
   StreamSubscription<User?>? _authSubscription;
 
@@ -144,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (mounted) {
         setState(() {
-          _latestData = data;
           _isLoading = false;
           _hasConnectionError = false;
         });
@@ -367,6 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
                             },
                           ),
+
                         ],
                       ),
                     );
