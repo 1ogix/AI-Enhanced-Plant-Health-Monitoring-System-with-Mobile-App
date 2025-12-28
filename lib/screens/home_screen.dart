@@ -4,6 +4,11 @@ import '../services/firebase_auth_service.dart';
 import '../services/firebase_db_service.dart';
 import '../services/esp32_service.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
@@ -23,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _connectionStatus = 'Checking connection...';
   Map<String, dynamic>? _latestData;
   bool _hasConnectionError = false;
+  StreamSubscription<User?>? _authSubscription;
 
   // Format for timestamps
   final DateFormat _dateFormat = DateFormat('HH:mm:ss');
@@ -30,7 +36,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _authSubscription = _authService.authStateChanges.listen((user) {
+      if (!widget.isFirebaseInitialized) return;
+      if (user != null) {
+        _initializeServices();
+      } else {
+        if (mounted) {
+          setState(() {
+            _hasConnectionError = true;
+            _connectionStatus =
+                'Not logged in to Firebase. Please log in from Settings.';
+          });
+        }
+      }
+    });
     _initializeServices();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _initializeServices() async {
@@ -161,51 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     return SingleChildScrollView(
                       child: Column(
                         children: [
-                          // User info card
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                children: [
-                                  const CircleAvatar(
-                                    backgroundColor: Colors.green,
-                                    child:
-                                        Icon(Icons.person, color: Colors.white),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _authService.currentUser?.email ??
-                                            'User',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      Text(
-                                        'User ID: ${_authService.userId?.substring(0, 8) ?? 'Unknown'}...',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
                           // Plant health status card
                           Card(
                             elevation: 3,

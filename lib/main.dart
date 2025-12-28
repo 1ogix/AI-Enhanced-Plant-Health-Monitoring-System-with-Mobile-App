@@ -130,10 +130,23 @@ Future<void> _requestPermissions() async {
 }
 
 // Main app
-class PlantMonitorApp extends StatelessWidget {
+class PlantMonitorApp extends StatefulWidget {
   final bool isFirebaseInitialized;
 
   const PlantMonitorApp({super.key, required this.isFirebaseInitialized});
+
+  @override
+  State<PlantMonitorApp> createState() => _PlantMonitorAppState();
+}
+
+class _PlantMonitorAppState extends State<PlantMonitorApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _setThemeMode(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +157,19 @@ class PlantMonitorApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: MainScreen(isFirebaseInitialized: isFirebaseInitialized),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: _themeMode,
+      home: MainScreen(
+        isFirebaseInitialized: widget.isFirebaseInitialized,
+        themeMode: _themeMode,
+        onThemeModeChanged: _setThemeMode,
+      ),
     );
   }
 }
@@ -152,8 +177,14 @@ class PlantMonitorApp extends StatelessWidget {
 // Main screen with sidebar and content
 class MainScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
-  const MainScreen({super.key, required this.isFirebaseInitialized});
+  const MainScreen(
+      {super.key,
+      required this.isFirebaseInitialized,
+      required this.themeMode,
+      required this.onThemeModeChanged});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -213,7 +244,11 @@ class _MainScreenState extends State<MainScreen>
         PlantHealthScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
         IrrigationControlScreen(
             isFirebaseInitialized: widget.isFirebaseInitialized),
-        SettingsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
+        SettingsScreen(
+          isFirebaseInitialized: widget.isFirebaseInitialized,
+          themeMode: widget.themeMode,
+          onThemeModeChanged: widget.onThemeModeChanged,
+        ),
         LogsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
         PlantAnalysisScreen(isFirebaseInitialized: widget.isFirebaseInitialized)
       ];

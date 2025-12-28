@@ -10,6 +10,8 @@ class FirebaseAuthService {
   FirebaseAuth? _auth;
   bool _isInitialized = false;
 
+  bool get isInitialized => _isInitialized;
+
   // Getter for auth that initializes on demand
   FirebaseAuth get auth {
     if (_auth == null) {
@@ -88,7 +90,8 @@ class FirebaseAuthService {
     try {
       if (!_isInitialized && Firebase.apps.isEmpty) {
         print('Cannot sign in - Firebase is not initialized');
-        return null;
+        throw Exception(
+            'Firebase not initialized. Please configure Firebase and restart the app.');
       }
 
       final userCredential = await auth.signInWithEmailAndPassword(

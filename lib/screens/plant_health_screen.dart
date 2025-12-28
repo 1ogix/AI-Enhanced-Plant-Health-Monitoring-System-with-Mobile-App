@@ -23,13 +23,13 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
 
   // Dates for x-axis
   final List<String> _lastSevenDays = [
-    '6 Days Ago',
-    '5 Days Ago',
-    '4 Days Ago',
-    '3 Days Ago',
-    '2 Days Ago',
-    'Yesterday',
-    'Today',
+    '7th',
+    '6th',
+    '5th',
+    '4th',
+    '3rd',
+    'Recent',
+    'Current',
   ];
 
   int _selectedMetricIndex = 0;
@@ -292,6 +292,9 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       stream: _plantData.plantHealthStream,
       initialData: _plantData.plantHealth,
       builder: (context, snapshot) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final textColor = colorScheme.onSurface;
+        final subTextColor = textColor.withOpacity(0.82);
         final healthStatus = snapshot.data ?? 'UNKNOWN';
         // Calculate health percentage based on plant health status
         double healthPercentage = 0.0;
@@ -384,8 +387,8 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                           const SizedBox(height: 8),
                           Text(
                             healthMessage,
-                            style: const TextStyle(
-                              color: Colors.black87,
+                            style: TextStyle(
+                              color: subTextColor,
                             ),
                           ),
                         ],
@@ -407,7 +410,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                       Expanded(
                         child: Text(
                           _getHealthTip(healthStatus),
-                          style: const TextStyle(color: Colors.black87),
+                          style: TextStyle(color: subTextColor),
                         ),
                       ),
                     ],
@@ -678,7 +681,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        '${selectedMetric['name']} History (7 Days)',
+                                        '${selectedMetric['name']} History',
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -691,12 +694,20 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.shade200,
+                                        color: Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white24
+                                            : Colors.grey.shade200,
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'Live',
-                                        style: TextStyle(fontSize: 12),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -765,34 +776,6 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                                 ),
 
                                 const SizedBox(height: 16),
-
-                                // Analysis button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.analytics),
-                                    label: const Text('Detailed Analysis'),
-                                    onPressed: () {
-                                      // Detailed analysis would go here
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Detailed analysis coming soon!'),
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                      backgroundColor: selectedMetric['color'],
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                           ),

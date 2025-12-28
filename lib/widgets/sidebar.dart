@@ -15,12 +15,12 @@ class Sidebar extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 50), // Space at the top
-        _buildNavItem(0, 'Home Page', Icons.home),
-        _buildNavItem(1, 'Analysis', Icons.eco),
-        _buildNavItem(2, 'Irrigation Control', Icons.water_drop),
-        _buildNavItem(3, 'Settings', Icons.settings),
-        _buildNavItem(4, 'Logs', Icons.list_alt),
-        _buildNavItem(5, 'Ai Analysis', Icons.science),
+        _buildNavItem(context, 0, 'Home Page', Icons.home),
+        _buildNavItem(context, 1, 'Analysis', Icons.eco),
+        _buildNavItem(context, 2, 'Irrigation Control', Icons.water_drop),
+        _buildNavItem(context, 3, 'Settings', Icons.settings),
+        _buildNavItem(context, 4, 'Logs', Icons.list_alt),
+        _buildNavItem(context, 5, 'Ai Analysis', Icons.science),
         const Spacer(),
         Container(
           padding: const EdgeInsets.all(16),
@@ -37,19 +37,25 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(int index, String title, IconData icon) {
+  Widget _buildNavItem(
+      BuildContext context, int index, String title, IconData icon) {
     final isSelected = selectedIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? Colors.green : Colors.grey.shade600,
+        color: isSelected
+            ? Colors.green
+            : (isDark ? Colors.grey.shade300 : Colors.grey.shade600),
         size: 24,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? Colors.green : Colors.black87,
+          color: isSelected
+              ? Colors.green
+              : (isDark ? Colors.white : Colors.black87),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),

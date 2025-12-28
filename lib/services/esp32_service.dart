@@ -3,10 +3,14 @@ import 'package:http/http.dart' as http;
 // import 'package:flutter/material.dart';
 
 class ESP32Service {
-  // Using a static IP for ESP32 on the shared WiFi network
-  static String baseUrl =
-      'http://192.168.1.100'; // Assumed IP of ESP32 on the network
-  static const Duration defaultTimeout = Duration(seconds: 5);
+  // Base URL for the ESP32; override at runtime with:
+  // flutter run --dart-define=ESP32_BASE_URL=http://<esp32-ip>
+  static final String baseUrl = const String.fromEnvironment(
+    'ESP32_BASE_URL',
+    defaultValue: 'http://192.168.1.100',
+  );
+
+  static const Duration defaultTimeout = Duration(seconds: 8);
 
   // Singleton pattern
   static final ESP32Service _instance = ESP32Service._internal();
@@ -53,12 +57,10 @@ class ESP32Service {
 
   // Check connection to ESP32
   Future<ConnectionStatus> checkConnection() async {
+    final statusUri = Uri.parse('$baseUrl/api/status');
+
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/status'),
-          )
-          .timeout(defaultTimeout);
+      final response = await http.get(statusUri).timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
         _log('ESP32 connected successfully');
@@ -82,12 +84,10 @@ class ESP32Service {
 
   // Get sensor data with error handling
   Future<Map<String, dynamic>?> getSensorData() async {
+    final sensorUri = Uri.parse('$baseUrl/api/sensor-data');
+
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/sensor-data'),
-          )
-          .timeout(defaultTimeout);
+      final response = await http.get(sensorUri).timeout(defaultTimeout);
 
       if (response.statusCode == 200) {
         _updateStatus(ConnectionStatus.connected);

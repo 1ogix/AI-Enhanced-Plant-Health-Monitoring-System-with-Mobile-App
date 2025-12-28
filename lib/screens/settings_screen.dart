@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/firebase_config.dart';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
-  const SettingsScreen({super.key, this.isFirebaseInitialized = false});
+  const SettingsScreen(
+      {super.key,
+      this.isFirebaseInitialized = false,
+      required this.themeMode,
+      required this.onThemeModeChanged});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -21,35 +28,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Service instances
   final FirebaseAuthService _authService = FirebaseAuthService();
+  StreamSubscription? _authSubscription;
 
   // UI state
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+  late bool _isDarkMode;
 
   @override
   void initState() {
     super.initState();
+    _isDarkMode = widget.themeMode == ThemeMode.dark;
     // If user is already logged in, populate email field
     if (_authService.currentUser != null) {
       _emailController.text = _authService.currentUser?.email ?? '';
     }
 
+    // Ensure Firebase Auth is initialized when Firebase is available
+    if (widget.isFirebaseInitialized && !_authService.isInitialized) {
+      _authService.initialize();
+    }
+
     // Set API key from config - safely handle null case
     _webApiKeyController.text =
         FirebaseConfig.platformOptions?.apiKey ?? 'Using default configuration';
+
+    // Keep UI in sync with auth changes
+    if (widget.isFirebaseInitialized) {
+      _authSubscription = _authService.authStateChanges.listen((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _webApiKeyController.dispose();
     super.dispose();
   }
 
+  void _toggleTheme(bool value) {
+    setState(() {
+      _isDarkMode = value;
+    });
+    widget.onThemeModeChanged(value ? ThemeMode.dark : ThemeMode.light);
+  }
+
   // Firebase authentication
   Future<void> _updateFirebaseAuth() async {
+    if (!widget.isFirebaseInitialized || !_authService.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Firebase is not initialized. Check configuration.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (!_firebaseFormKey.currentState!.validate()) {
       return;
     }
@@ -60,19 +100,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      await _authService.signInWithEmailAndPassword(
+      final user = await _authService.signInWithEmailAndPassword(
           _emailController.text.trim(), _passwordController.text.trim());
 
-      if (mounted) {
+      if (user == null) {
+        setState(() {
+          _errorMessage = 'Login failed. Please check your credentials.';
+        });
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Firebase login successful!'),
+          SnackBar(
+            content: Text('Firebase login successful for ${user.email}'),
             backgroundColor: Colors.green,
           ),
         );
-        // Clear password field after successful login
         _passwordController.clear();
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = e.message ?? e.code;
+      });
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -139,95 +186,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // WiFi Information Section
-            const Text(
-              'WiFi Information',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'ESP32 and Flutter app must be connected to this WiFi network',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // WiFi Info Card
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.wifi,
-                          color: Colors.blue,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'WiFi Credentials',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'SSID (Network Name):',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'DEANDRE 2.4',
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Password:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'aldresean_231027',
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Note: Make sure your ESP32 device is also configured to connect to this WiFi network.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
             // Firebase Setup Section
             const Text(
               'Firebase Setup',
@@ -277,9 +235,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isLoggedIn
+                      widget.isFirebaseInitialized && isLoggedIn
                           ? 'Logged in as ${_authService.currentUser?.email}'
-                          : 'Not logged in to Firebase',
+                          : widget.isFirebaseInitialized
+                              ? 'Not logged in to Firebase'
+                              : 'Firebase not initialized',
                     ),
                     const SizedBox(height: 8),
                     if (isLoggedIn)
@@ -415,6 +375,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               )
                             : Text(isLoggedIn ? 'UPDATE LOGIN' : 'LOGIN'),
                       ),
+                      if (isLoggedIn) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton(
+                          onPressed: _isLoading ? null : _logout,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red.shade700,
+                            side: BorderSide(color: Colors.red.shade200),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('LOGOUT'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -423,46 +401,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // App settings section
-            const Text(
-              'App Settings',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Add additional settings options here
+            // App settings: Dark mode toggle
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.dark_mode),
-                      title: Text('Dark Mode'),
-                      trailing: Icon(Icons.toggle_off),
-                    ),
-                    Divider(),
-                    ListTile(
-                      leading: Icon(Icons.notifications),
-                      title: Text('Notifications'),
-                      trailing: Icon(Icons.toggle_on),
-                    ),
-                    Divider(),
-                    ListTile(
-                      leading: Icon(Icons.info),
-                      title: Text('App Version'),
-                      trailing: Text('1.0.0'),
-                    ),
-                  ],
-                ),
+              child: SwitchListTile(
+                title: const Text('Dark Mode'),
+                value: _isDarkMode,
+                onChanged: _toggleTheme,
+                secondary: const Icon(Icons.dark_mode),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               ),
             ),
           ],
