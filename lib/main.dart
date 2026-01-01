@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'screens/plant_health_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/logs_screen.dart';
 import 'screens/irrigation_control_screen.dart';
 import 'screens/plant_analysis_screen.dart';
 import 'widgets/sidebar.dart';
@@ -264,7 +263,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           themeMode: widget.themeMode,
           onThemeModeChanged: widget.onThemeModeChanged,
         ),
-        LogsScreen(isFirebaseInitialized: widget.isFirebaseInitialized),
         PlantAnalysisScreen(isFirebaseInitialized: widget.isFirebaseInitialized)
       ];
     });

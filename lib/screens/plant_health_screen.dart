@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/plant_data.dart'; // Import the PlantData model
 import '../widgets/custom_charts.dart';
+import '../services/firebase_db_service.dart';
 
 class PlantHealthScreen extends StatefulWidget {
   final bool isFirebaseInitialized;
@@ -14,6 +15,7 @@ class PlantHealthScreen extends StatefulWidget {
 class _PlantHealthScreenState extends State<PlantHealthScreen> {
   // Get instance of PlantData singleton
   final PlantData _plantData = PlantData();
+  final FirebaseDbService _dbService = FirebaseDbService();
 
   // Sample data for demonstration
   late List<Map<String, dynamic>> _healthMetrics;
@@ -21,8 +23,10 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
   // History data for charts
   late List<List<double>> _historyData;
 
-  // Dates for x-axis
-  final List<String> _lastSevenDays = [
+  static const int _historyLength = 7;
+
+  // Labels for last N updates (oldest -> newest)
+  final List<String> _lastSevenUpdates = [
     '7th',
     '6th',
     '5th',
@@ -43,78 +47,33 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
     _initializeHealthMetrics();
   }
 
-  // Initialize history data with values from PlantData when available
+  // Initialize history data with current in-memory values
   void _initializeHistoryData() {
     _historyData = [
-      // Soil moisture history (last 7 days)
-      _plantData.soilMoistureHistory.isEmpty
-          ? [
-              50.0,
-              48.0,
-              52.0,
-              56.0,
-              54.0,
-              58.0,
-              56.0
-            ] // Sample data with realistic values
-          : _plantData.soilMoistureHistory,
-
-      // Water Temperature history (last 7 days)
-      _plantData.temperatureHistory.isEmpty
-          ? [25, 24, 26, 27, 26, 25, 26]
-          : _plantData.temperatureHistory,
-
-      // DHT Air Temperature history
-      _plantData.dhtTemperatureHistory.isEmpty
-          ? [28, 29, 28, 29, 30, 29, 28]
-          : _plantData.dhtTemperatureHistory,
-
-      // Humidity history
-      _plantData.humidityHistory.isEmpty
-          ? [60, 62, 61, 63, 65, 64, 62]
-          : _plantData.humidityHistory,
+      List<double>.filled(_historyLength, _plantData.soilMoisture,
+          growable: true),
+      List<double>.filled(_historyLength, _plantData.soilMoisture,
+          growable: true),
+      List<double>.filled(_historyLength, _plantData.soilMoisture,
+          growable: true),
+      List<double>.filled(_historyLength, _plantData.temperature,
+          growable: true),
+      List<double>.filled(_historyLength, _plantData.dhtTemperature,
+          growable: true),
+      List<double>.filled(_historyLength, _plantData.humidity, growable: true),
     ];
+  }
 
-    // Ensure each history list has exactly 7 items for display
-    for (int i = 0; i < _historyData.length; i++) {
-      // If history is completely empty, use sample data instead of current reading
-      if (_historyData[i].isEmpty) {
-        if (i == 0) {
-          // Soil moisture
-          _historyData[i] = [50.0, 48.0, 52.0, 56.0, 54.0, 58.0, 56.0];
-        } else if (i == 1) {
-          // Water Temperature
-          _historyData[i] = [25, 24, 26, 27, 26, 25, 26];
-        } else if (i == 2) {
-          // DHT Temperature
-          _historyData[i] = [28, 29, 28, 29, 30, 29, 28];
-        } else if (i == 3) {
-          // Humidity
-          _historyData[i] = [60, 62, 61, 63, 65, 64, 62];
-        }
-      }
+  final List<double?> _lastHistoryValues = List<double?>.filled(6, null);
 
-      // Add current values if list is shorter than 7 items
-      while (_historyData[i].length < 7) {
-        if (i == 1) {
-          // Water Temperature
-          _historyData[i].insert(0, _plantData.temperature);
-        } else if (i == 0) {
-          // Soil moisture
-          _historyData[i].insert(0, _plantData.soilMoisture);
-        } else if (i == 2) {
-          // DHT Temperature
-          _historyData[i].insert(0, _plantData.dhtTemperature);
-        } else if (i == 3) {
-          // Humidity
-          _historyData[i].insert(0, _plantData.humidity);
-        }
-      }
+  void _appendHistory(int index, double value) {
+    if (_lastHistoryValues[index] == value) return;
+    _lastHistoryValues[index] = value;
 
-      // Trim lists to 7 items if they're longer
-      if (_historyData[i].length > 7) {
-        _historyData[i] = _historyData[i].sublist(_historyData[i].length - 7);
-      }
+    _historyData[index].add(value);
+    if (_historyData[index].length > _historyLength) {
+      _historyData[index] = _historyData[index]
+          .sublist(_historyData[index].length - _historyLength);
     }
   }
 
@@ -122,11 +81,29 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
   void _initializeHealthMetrics() {
     _healthMetrics = [
       {
-        'name': 'Soil Moisture',
+        'name': 'Soil Moisture 1',
         'value': _plantData.soilMoisture,
         'unit': '%',
         'icon': Icons.water_drop,
         'color': Colors.blue,
+        'recommendation': 'Optimal range: 40-60%',
+        'status': _getStatusForMoisture(_plantData.soilMoisture.toInt()),
+      },
+      {
+        'name': 'Soil Moisture 2',
+        'value': _plantData.soilMoisture,
+        'unit': '%',
+        'icon': Icons.water_drop,
+        'color': Colors.blueGrey,
+        'recommendation': 'Optimal range: 40-60%',
+        'status': _getStatusForMoisture(_plantData.soilMoisture.toInt()),
+      },
+      {
+        'name': 'Soil Moisture 3',
+        'value': _plantData.soilMoisture,
+        'unit': '%',
+        'icon': Icons.water_drop,
+        'color': Colors.indigo,
         'recommendation': 'Optimal range: 40-60%',
         'status': _getStatusForMoisture(_plantData.soilMoisture.toInt()),
       },
@@ -208,33 +185,65 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_healthMetrics.length < 6 || _historyData.length < 6) {
+      _initializeHistoryData();
+      _initializeHealthMetrics();
+      _selectedMetricIndex = 0;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Plant Health Analysis'),
         backgroundColor: Colors.green.withOpacity(0.8),
         foregroundColor: Colors.white,
       ),
-      body: StreamBuilder<double>(
-          // Listen to water temperature changes
-          stream: _plantData.temperatureStream,
-          initialData: _plantData.temperature,
-          builder: (context, tempSnapshot) {
-            // Update temperature in health metrics when temperature changes
-            if (tempSnapshot.hasData) {
-              _healthMetrics[1]['value'] = tempSnapshot.data;
-              _healthMetrics[1]['status'] =
-                  _getStatusForTemperature(tempSnapshot.data!);
+      body: StreamBuilder<Map<String, dynamic>>(
+          stream: _dbService.sensorDataStream(),
+          initialData: const <String, dynamic>{},
+          builder: (context, dataSnapshot) {
+            if (_healthMetrics.length < 6 || _historyData.length < 6) {
+              _initializeHistoryData();
+              _initializeHealthMetrics();
+              _selectedMetricIndex = 0;
+              return const Center(child: CircularProgressIndicator());
             }
 
+            final data = dataSnapshot.data;
+            final soil1 = _getDoubleValue(
+              data?['soilMoisture1'],
+              fallback: _plantData.soilMoisture,
+            );
+            final soil2 = _getDoubleValue(
+              data?['soilMoisture2'],
+              fallback: _plantData.soilMoisture,
+            );
+            final soil3 = _getDoubleValue(
+              data?['soilMoisture3'],
+              fallback: _plantData.soilMoisture,
+            );
+
+            _healthMetrics[0]['value'] = soil1;
+            _healthMetrics[0]['status'] = _getStatusForMoisture(soil1.toInt());
+            _appendHistory(0, soil1);
+
+            _healthMetrics[1]['value'] = soil2;
+            _healthMetrics[1]['status'] = _getStatusForMoisture(soil2.toInt());
+            _appendHistory(1, soil2);
+
+            _healthMetrics[2]['value'] = soil3;
+            _healthMetrics[2]['status'] = _getStatusForMoisture(soil3.toInt());
+            _appendHistory(2, soil3);
+
             return StreamBuilder<double>(
-              // Listen to moisture changes
-              stream: _plantData.soilMoistureStream,
-              initialData: _plantData.soilMoisture.toDouble(),
-              builder: (context, moistureSnapshot) {
-                if (moistureSnapshot.hasData) {
-                  _healthMetrics[0]['value'] = moistureSnapshot.data!;
-                  _healthMetrics[0]['status'] =
-                      _getStatusForMoisture(moistureSnapshot.data!.toInt());
+              // Listen to water temperature changes
+              stream: _plantData.temperatureStream,
+              initialData: _plantData.temperature,
+              builder: (context, tempSnapshot) {
+                if (tempSnapshot.hasData) {
+                  _healthMetrics[3]['value'] = tempSnapshot.data;
+                  _healthMetrics[3]['status'] =
+                      _getStatusForTemperature(tempSnapshot.data!);
+                  _appendHistory(3, tempSnapshot.data!);
                 }
 
                 return StreamBuilder<double>(
@@ -243,9 +252,10 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                   initialData: _plantData.dhtTemperature,
                   builder: (context, dhtTempSnapshot) {
                     if (dhtTempSnapshot.hasData) {
-                      _healthMetrics[2]['value'] = dhtTempSnapshot.data!;
-                      _healthMetrics[2]['status'] =
+                      _healthMetrics[4]['value'] = dhtTempSnapshot.data!;
+                      _healthMetrics[4]['status'] =
                           _getStatusForDhtTemperature(dhtTempSnapshot.data!);
+                      _appendHistory(4, dhtTempSnapshot.data!);
                     }
 
                     return StreamBuilder<double>(
@@ -254,9 +264,10 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                       initialData: _plantData.humidity,
                       builder: (context, humiditySnapshot) {
                         if (humiditySnapshot.hasData) {
-                          _healthMetrics[3]['value'] = humiditySnapshot.data!;
-                          _healthMetrics[3]['status'] =
+                          _healthMetrics[5]['value'] = humiditySnapshot.data!;
+                          _healthMetrics[5]['status'] =
                               _getStatusForHumidity(humiditySnapshot.data!);
+                          _appendHistory(5, humiditySnapshot.data!);
                         }
 
                         return SingleChildScrollView(
@@ -587,80 +598,12 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                       stream: _plantData.humidityStream,
                       initialData: _plantData.humidity,
                       builder: (context, humiditySnapshot) {
-                        if (_plantData.dhtTemperatureHistory.isNotEmpty) {
-                          _historyData[2] = List<double>.from(
-                              _plantData.dhtTemperatureHistory);
-                        }
-
-                        if (_plantData.humidityHistory.isNotEmpty) {
-                          _historyData[3] =
-                              List<double>.from(_plantData.humidityHistory);
-                        }
-                        if (_plantData.temperatureHistory.isNotEmpty) {
-                          _historyData[1] =
-                              List<double>.from(_plantData.temperatureHistory);
-                        }
-                        if (_plantData.soilMoistureHistory.isNotEmpty) {
-                          _historyData[0] =
-                              List<double>.from(_plantData.soilMoistureHistory);
-                        }
-
                         final selectedMetric =
                             _healthMetrics[_selectedMetricIndex];
-
-                        // If history data is still empty after checking Firebase, use sample data
-                        if (_historyData[0].isEmpty) {
-                          _historyData[0] = [
-                            50.0,
-                            48.0,
-                            52.0,
-                            56.0,
-                            54.0,
-                            58.0,
-                            56.0
-                          ];
-                        }
-
-                        if (_historyData[1].isEmpty) {
-                          _historyData[1] = [25, 24, 26, 27, 26, 25, 26];
-                        }
-
-                        if (_historyData[2].isEmpty) {
-                          _historyData[2] = [28, 29, 28, 29, 30, 29, 28];
-                        }
-
-                        if (_historyData[3].isEmpty) {
-                          _historyData[3] = [60, 62, 61, 63, 65, 64, 62];
-                        }
-
-                        // Ensure each data list has 7 entries
-                        for (int i = 0; i < _historyData.length; i++) {
-                          while (_historyData[i].length < 7) {
-                            // This logic seems to be adding to the start, but let's add to the end for consistency
-                            // The sublist logic below will handle trimming.
-                            if (i == 0) {
-                              // Add current soil moisture at the end
-                              _historyData[i].add(moistureSnapshot.data!);
-                            } else if (i == 1) {
-                              // Add current water temperature at the end
-                              _historyData[i].add(waterTempSnapshot.data!);
-                            } else if (i == 2) {
-                              // Add current DHT temperature at the end
-                              _historyData[i].add(dhtTempSnapshot.data!);
-                            } else if (i == 3) {
-                              // Add current humidity at the end
-                              _historyData[i].add(humiditySnapshot.data!);
-                            }
-                          }
-
-                          // Trim to 7 items if needed
-                          if (_historyData[i].length > 7) {
-                            _historyData[i] = _historyData[i]
-                                .sublist(_historyData[i].length - 7);
-                          }
-                        }
-
-                        final historyData = _historyData[_selectedMetricIndex];
+                        final historyData =
+                            _historyData[_selectedMetricIndex].isEmpty
+                                ? List<double>.filled(_historyLength, 0)
+                                : _historyData[_selectedMetricIndex];
 
                         // Rest of the method remains unchanged
                         return Card(
@@ -756,12 +699,13 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
                                     icon: const Icon(Icons.refresh),
                                     label: const Text('Refresh History Data'),
                                     onPressed: () async {
-                                      if (_plantData.isConnectedToFirebase) {
-                                        await _plantData.refreshData();
-                                      }
-                                      // Reset history data
                                       setState(() {
                                         _initializeHistoryData();
+                                        for (int i = 0;
+                                            i < _lastHistoryValues.length;
+                                            i++) {
+                                          _lastHistoryValues[i] = null;
+                                        }
                                       });
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
@@ -791,9 +735,15 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
   Widget _buildSimpleLineChart(List<double> data, Map<String, dynamic> metric) {
     return CustomLineChart(
       data: data,
-      labels: _lastSevenDays,
+      labels: _lastSevenUpdates,
       unit: metric['unit'],
       lineColor: metric['color'],
     );
+  }
+
+  double _getDoubleValue(dynamic value, {double fallback = 0}) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
   }
 }
