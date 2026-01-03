@@ -109,7 +109,7 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
       },
       {
         'name': 'Water Temperature',
-        'value': _plantData.temperature,
+        'value': _plantData.ntcTemperature,
         'unit': '°C',
         'icon': Icons.thermostat,
         'color': Colors.orange,
@@ -221,6 +221,10 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
               data?['soilMoisture3'],
               fallback: _plantData.soilMoisture,
             );
+            final waterTemp = _getDoubleValue(
+              data?['ntcTemperature'],
+              fallback: _plantData.ntcTemperature,
+            );
 
             _healthMetrics[0]['value'] = soil1;
             _healthMetrics[0]['status'] = _getStatusForMoisture(soil1.toInt());
@@ -234,61 +238,51 @@ class _PlantHealthScreenState extends State<PlantHealthScreen> {
             _healthMetrics[2]['status'] = _getStatusForMoisture(soil3.toInt());
             _appendHistory(2, soil3);
 
+            _healthMetrics[3]['value'] = waterTemp;
+            _healthMetrics[3]['status'] = _getStatusForTemperature(waterTemp);
+            _appendHistory(3, waterTemp);
+
             return StreamBuilder<double>(
-              // Listen to water temperature changes
-              stream: _plantData.temperatureStream,
-              initialData: _plantData.temperature,
-              builder: (context, tempSnapshot) {
-                if (tempSnapshot.hasData) {
-                  _healthMetrics[3]['value'] = tempSnapshot.data;
-                  _healthMetrics[3]['status'] =
-                      _getStatusForTemperature(tempSnapshot.data!);
-                  _appendHistory(3, tempSnapshot.data!);
+              // Listen to DHT temp changes
+              stream: _plantData.dhtTemperatureStream,
+              initialData: _plantData.dhtTemperature,
+              builder: (context, dhtTempSnapshot) {
+                if (dhtTempSnapshot.hasData) {
+                  _healthMetrics[4]['value'] = dhtTempSnapshot.data!;
+                  _healthMetrics[4]['status'] =
+                      _getStatusForDhtTemperature(dhtTempSnapshot.data!);
+                  _appendHistory(4, dhtTempSnapshot.data!);
                 }
 
                 return StreamBuilder<double>(
-                  // Listen to DHT temp changes
-                  stream: _plantData.dhtTemperatureStream,
-                  initialData: _plantData.dhtTemperature,
-                  builder: (context, dhtTempSnapshot) {
-                    if (dhtTempSnapshot.hasData) {
-                      _healthMetrics[4]['value'] = dhtTempSnapshot.data!;
-                      _healthMetrics[4]['status'] =
-                          _getStatusForDhtTemperature(dhtTempSnapshot.data!);
-                      _appendHistory(4, dhtTempSnapshot.data!);
+                  // Listen to humidity changes
+                  stream: _plantData.humidityStream,
+                  initialData: _plantData.humidity,
+                  builder: (context, humiditySnapshot) {
+                    if (humiditySnapshot.hasData) {
+                      _healthMetrics[5]['value'] = humiditySnapshot.data!;
+                      _healthMetrics[5]['status'] =
+                          _getStatusForHumidity(humiditySnapshot.data!);
+                      _appendHistory(5, humiditySnapshot.data!);
                     }
 
-                    return StreamBuilder<double>(
-                      // Listen to humidity changes
-                      stream: _plantData.humidityStream,
-                      initialData: _plantData.humidity,
-                      builder: (context, humiditySnapshot) {
-                        if (humiditySnapshot.hasData) {
-                          _healthMetrics[5]['value'] = humiditySnapshot.data!;
-                          _healthMetrics[5]['status'] =
-                              _getStatusForHumidity(humiditySnapshot.data!);
-                          _appendHistory(5, humiditySnapshot.data!);
-                        }
-
-                        return SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Overall health status card
-                                _buildOverallHealthCard(),
-                                const SizedBox(height: 20),
-                                // Health metrics grid
-                                _buildHealthMetricsGrid(),
-                                const SizedBox(height: 20),
-                                // Historical data section
-                                _buildHistoricalDataSection(),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                    return SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Overall health status card
+                            _buildOverallHealthCard(),
+                            const SizedBox(height: 20),
+                            // Health metrics grid
+                            _buildHealthMetricsGrid(),
+                            const SizedBox(height: 20),
+                            // Historical data section
+                            _buildHistoricalDataSection(),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 );

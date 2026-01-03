@@ -102,6 +102,8 @@ Use the live sensor data below to answer the user's question.
 If data is missing or unclear, say so briefly.
 Keep the response to 1-3 short sentences.
 Do not invent actions or readings not shown in the data.
+Note: use `ntcTemperature` as the water temperature.
+
 
 Live sensor data (JSON):
 ${jsonEncode(sensorData)}
