@@ -106,13 +106,14 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
       await _dbService.initialize();
       if (!widget.isFirebaseInitialized) return;
 
-      final pumpRef = FirebaseDatabase.instance
-          .ref('plantData/manualPumpConfigs/pump${index + 1}');
-      await pumpRef.update({
-        'isAutoMode': _isAutoMode[index],
-        'minutes': _minutes[index],
-        'seconds': _seconds[index],
-        'manualTrigger': true,
+      final rootRef = FirebaseDatabase.instance.ref();
+      final pumpKey = 'pump${index + 1}';
+      await rootRef.update({
+        'plantData/manualPumpConfigs/$pumpKey/isAutoMode': _isAutoMode[index],
+        'plantData/manualPumpConfigs/$pumpKey/minutes': _minutes[index],
+        'plantData/manualPumpConfigs/$pumpKey/seconds': _seconds[index],
+        'plantData/manualPumpConfigs/$pumpKey/manualTrigger': true,
+        'plantData/current/pumpStatuses/$pumpKey': true,
       });
       setState(() {
         _statusMessage = 'Pump ${index + 1} triggered';
@@ -134,12 +135,17 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
       await _dbService.initialize();
       if (!widget.isFirebaseInitialized) return;
 
-      final baseRef =
-          FirebaseDatabase.instance.ref('plantData/manualPumpConfigs');
+      final rootRef = FirebaseDatabase.instance.ref();
       final updates = <Future<void>>[];
       for (int i = 0; i < _pumpCount; i++) {
+        _isAutoMode[i] = false;
+        final pumpKey = 'pump${i + 1}';
         updates.add(
-          baseRef.child('pump${i + 1}').update({'manualTrigger': true}),
+          rootRef.update({
+            'plantData/manualPumpConfigs/$pumpKey/isAutoMode': false,
+            'plantData/manualPumpConfigs/$pumpKey/manualTrigger': true,
+            'plantData/current/pumpStatuses/$pumpKey': true,
+          }),
         );
       }
       await Future.wait(updates);
@@ -154,6 +160,24 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
     } finally {
       setState(() {
         _isTriggeringAll = false;
+      });
+    }
+  }
+
+  Future<void> _clearManualTrigger(int index) async {
+    try {
+      await _dbService.initialize();
+      if (!widget.isFirebaseInitialized) return;
+
+      final rootRef = FirebaseDatabase.instance.ref();
+      final pumpKey = 'pump${index + 1}';
+      await rootRef.update({
+        'plantData/manualPumpConfigs/$pumpKey/manualTrigger': false,
+        'plantData/current/pumpStatuses/$pumpKey': false,
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Error clearing manual trigger: $e';
       });
     }
   }
@@ -319,6 +343,7 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
                     setState(() {
                       _isAutoMode[index] = true;
                     });
+                    _clearManualTrigger(index);
                   }),
                 ),
                 const SizedBox(width: 10),
@@ -405,19 +430,21 @@ class _IrrigationControlScreenState extends State<IrrigationControlScreen> {
                   ),
                 ],
               ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _triggerPump(index),
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start Pump'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+            if (!isAuto) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _triggerPump(index),
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Pump'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

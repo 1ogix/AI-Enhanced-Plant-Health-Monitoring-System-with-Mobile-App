@@ -221,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       fallback: _plantData.fanStatus,
                     );
                     final ledActive = _getBoolValue(
-                      _getNestedValue(data, ['led', 'actual']),
+                      _getNestedValue(data, ['ledStatus']),
                       fallback: _plantData.ledStatus,
                     );
                     final coolingActive = _getBoolValue(
